@@ -2,896 +2,382 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CIPHER_NEXUS | Secure Terminal</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>CIPHER_NEXUS | Secure Uplink</title>
+    
+    <!-- Dependencies -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Use development builds for better error messages in a dev environment -->
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     
-    <!-- Firebase Imports: Using module versions -->
+    <!-- Firebase SDK -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, setLogLevel, collection, doc, getDoc, setDoc, updateDoc, addDoc, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, deleteDoc, updateDoc, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // Global variables for Firebase access within the application logic
-        window.firebaseApp = null;
-        window.firebaseAuth = null;
-        window.firebaseDb = null;
-        // We attach individual functions to a global object because 'type=module' scopes variables locally
-        window.firebaseFirestore = { collection, doc, getDoc, setDoc, updateDoc, addDoc, onSnapshot, serverTimestamp }; 
-        
-        // Initialize Firebase services and attach them to the window scope
-        window.initFirebase = async () => {
-            try {
-                const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
-                
-                // Initialize App
-                window.firebaseApp = initializeApp(firebaseConfig);
-                
-                // Initialize Services
-                window.firebaseAuth = getAuth(window.firebaseApp);
-                window.firebaseDb = getFirestore(window.firebaseApp);
-                
-                // Set Debug Logging
-                // setLogLevel('debug'); // Uncomment for debugging
-                
-                console.log("Firebase services initialized successfully.");
-
-                // Handle Auth
-                const auth = window.firebaseAuth;
-                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                    try {
-                        await signInWithCustomToken(auth, __initial_auth_token);
-                    } catch (e) {
-                        console.warn("Custom token failed, falling back to anonymous", e);
-                        await signInAnonymously(auth);
-                    }
-                } else {
-                    await signInAnonymously(auth);
-                }
-
-            } catch (error) {
-                console.error("Firebase initialization failed:", error);
-            }
+        const firebaseConfig = {
+            apiKey: "AIzaSyBQYYnJY40FQWzmlRLnrQbEnOPIP3GPn-k",
+            authDomain: "uncsam-d938d.firebaseapp.com",
+            projectId: "uncsam-d938d",
+            storageBucket: "uncsam-d938d.firebasestorage.app",
+            messagingSenderId: "16799293764",
+            appId: "1:16799293764:web:835733dd944868908e7711",
+            measurementId: "G-QBH09TB8YK"
         };
 
-        // Ensure initFirebase is called
-        window.initFirebase();
+        try {
+            const app = initializeApp(firebaseConfig);
+            window.db = getFirestore(app);
+            window.auth = getAuth(app);
+            window.fb = { signInAnonymously, doc, setDoc, deleteDoc, updateDoc, onSnapshot, serverTimestamp };
+        } catch (e) { console.error("Sys: Fail", e); }
     </script>
 
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@100..800&family=Share+Tech+Mono&display=swap');
-
-        body {
-            background-color: #050505;
-            color: #00ff41;
-            font-family: 'JetBrains Mono', monospace;
-            overflow: hidden; /* Prevent body scroll, handle in app */
-            background-image: 
-                radial-gradient(circle at 10% 20%, rgba(0, 255, 65, 0.05) 0%, transparent 30%),
-                radial-gradient(circle at 80% 80%, rgba(0, 255, 65, 0.03) 0%, transparent 30%);
-            background-size: 200px 200px;
-        }
-
-        /* Scrollbar */
-        ::-webkit-scrollbar {
-            width: 8px;
-            height: 8px;
-        }
-        ::-webkit-scrollbar-track {
-            background: #0d0d0d;
-        }
-        ::-webkit-scrollbar-thumb {
-            background: #1a1a1a;
-            border: 1px solid #00ff41;
-        }
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@100..800&display=swap');
+        :root { --p: #0f0; --b: #000; --d: #050505; --err: #ff3333; }
+        body { background: var(--d); color: var(--p); font-family: 'JetBrains Mono', monospace; overflow: hidden; }
         
-        /* CRT Effect */
-        .crt::before {
-            content: " ";
-            display: block;
-            position: absolute;
-            top: 0;
-            left: 0;
-            bottom: 0;
-            right: 0;
-            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), 
-                        linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
-            z-index: 2;
-            background-size: 100% 2px, 3px 100%;
-            pointer-events: none;
-        }
-        
-        .glow-text {
-            text-shadow: 0 0 5px rgba(0, 255, 65, 0.5), 0 0 10px rgba(0, 255, 65, 0.3);
-        }
-        
-        .box-glow {
-            box-shadow: 0 0 15px rgba(0, 255, 65, 0.1);
-        }
-
-        .animate-blink {
-            animation: blink 1s step-end infinite;
-        }
-
-        @keyframes blink {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0; }
-        }
-
-        .scanline {
-            width: 100%;
-            height: 2px;
-            background: rgba(0, 255, 65, 0.1);
-            position: fixed;
-            z-index: 10;
-            animation: scan 6s linear infinite;
-            pointer-events: none;
-        }
-
-        @keyframes scan {
-            0% { top: -10%; }
-            100% { top: 110%; }
-        }
-
-        /* Enhanced Component Styles */
-        .secure-widget {
-            transition: all 0.2s ease;
-            border-radius: 12px;
-            overflow: hidden;
-        }
-
-        .widget-header {
-            background: linear-gradient(135deg, #00ff41 0%, #00cc33 100%);
-            border-bottom: 1px solid rgba(0, 255, 65, 0.3);
-        }
-
-        .widget-footer {
-            background: rgba(0, 255, 65, 0.1);
-            border-top: 1px solid rgba(0, 255, 65, 0.3);
-            padding: 0.25rem;
-            font-size: 0.75rem;
-            color: #00ff41;
-        }
-
-        .status-indicator {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 3px;
-            background: linear-gradient(to right, #00ff41, #00cc33);
-            border-radius: 3px;
-        }
-
-        .status-active {
-            animation: pulse 2s infinite;
-        }
-
-        @keyframes pulse {
-            0% { opacity: 0.7; }
-            50% { opacity: 0.3; }
-            100% { opacity: 0.7; }
-        }
+        .scanline { width: 100%; height: 100px; z-index: 50; background: linear-gradient(0deg, transparent 0%, rgba(0, 255, 0, 0.04) 50%, transparent 100%); opacity: 0.1; position: absolute; bottom: 100%; animation: scanline 10s linear infinite; pointer-events: none; }
+        @keyframes scanline { 0% { bottom: 100%; } 100% { bottom: -100%; } }
+        .flicker { animation: flicker 0.15s infinite; }
+        @keyframes flicker { 0% { opacity: 0.97; } 100% { opacity: 1; } }
+        .glitch-anim { animation: glitch 0.2s cubic-bezier(.25, .46, .45, .94) both infinite; }
+        @keyframes glitch { 0% { transform: translate(0); } 20% { transform: translate(-2px, 2px); } 40% { transform: translate(-2px, -2px); } 60% { transform: translate(2px, 2px); } 80% { transform: translate(2px, -2px); } 100% { transform: translate(0); } }
+        ::-webkit-scrollbar { width: 4px; } ::-webkit-scrollbar-track { background: #001100; } ::-webkit-scrollbar-thumb { background: #0f0; }
+        .term-border { border: 1px solid #00ff41; box-shadow: 0 0 10px rgba(0, 255, 65, 0.2); }
     </style>
 </head>
 <body>
     <div id="root"></div>
 
     <script type="text/babel" data-presets="env,react">
-        const { useState, useEffect, useRef, useMemo } = React;
+        const { useState, useEffect, useRef } = React;
+
+        // --- ICONS ---
+        const Icon = ({ d, className }) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d={d}/></svg>;
         
-        // --- Firebase Globals Setup ---
-        // Accessing the globally initialized services
-        const getDb = () => window.firebaseDb;
-        const getAuth = () => window.firebaseAuth;
-        const { collection, doc, updateDoc, setDoc, getDoc, addDoc, onSnapshot, serverTimestamp } = window.firebaseFirestore || {};
-        
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-
-        // --- Internal Icon System ---
-        const IconBase = ({ children, size = 24, className = "", ...props }) => (
-            <svg 
-                xmlns="http://www.w3.org/2000/svg" 
-                width={size} 
-                height={size} 
-                viewBox="0 0 24 24" 
-                fill="none" 
-                stroke="currentColor" 
-                strokeWidth="2" 
-                strokeLinecap="round" 
-                strokeLinejoin="round" 
-                className={className}
-                {...props}
-            >
-                {children}
-            </svg>
-        );
-
-        const Icons = {
-            Terminal: (props) => <IconBase {...props}><polyline points="4 17 10 11 4 5"></polyline><line x1="12" y1="19" x2="20" y2="19"></line></IconBase>,
-            Lock: (props) => <IconBase {...props}><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></IconBase>,
-            Unlock: (props) => <IconBase {...props}><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 9.9-1"></path></IconBase>,
-            Shield: (props) => <IconBase {...props}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></IconBase>,
-            MessageSquare: (props) => <IconBase {...props}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></IconBase>,
-            Video: (props) => <IconBase {...props}><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></IconBase>,
-            Mic: (props) => <IconBase {...props}><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></IconBase>,
-            Plus: (props) => <IconBase {...props}><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></IconBase>,
-            X: (props) => <IconBase {...props}><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></IconBase>,
-            MoreVertical: (props) => <IconBase {...props}><circle cx="12" cy="12" r="1"></circle><circle cx="12" cy="5" r="1"></circle><circle cx="12" cy="19" r="1"></circle></IconBase>,
-            Settings: (props) => <IconBase {...props}><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 2.83 0l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></IconBase>,
-            Trash2: (props) => <IconBase {...props}><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></IconBase>,
-            Wifi: (props) => <IconBase {...props}><path d="M5 12.55a11 11 0 0 1 14.08 0"></path><path d="M1.42 9a16 16 0 0 1 21.16 0"></path><path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path><line x1="12" y1="20" x2="12.01" y2="20"></line></IconBase>,
-            Upload: (props) => <IconBase {...props}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></IconBase>,
-            Clock: (props) => <IconBase {...props}><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></IconBase>,
-            EyeOff: (props) => <IconBase {...props}><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></IconBase>
+        // --- CRYPTO ---
+        const Crypto = {
+            getKey: async (pass) => {
+                const enc = new TextEncoder();
+                const keyMat = await window.crypto.subtle.importKey("raw", enc.encode(pass), { name: "PBKDF2" }, false, ["deriveKey"]);
+                return window.crypto.subtle.deriveKey({ name: "PBKDF2", salt: enc.encode("NEXUS_FINAL_SALT"), iterations: 100000, hash: "SHA-256" }, keyMat, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
+            },
+            encrypt: async (data, key) => {
+                const enc = new TextEncoder();
+                const iv = window.crypto.getRandomValues(new Uint8Array(12));
+                const encrypted = await window.crypto.subtle.encrypt({ name: "AES-GCM", iv: iv }, key, enc.encode(JSON.stringify(data)));
+                const combined = new Uint8Array(iv.length + encrypted.byteLength);
+                combined.set(iv); combined.set(new Uint8Array(encrypted), iv.length);
+                return btoa(String.fromCharCode(...combined));
+            },
+            decrypt: async (base64, key) => {
+                try {
+                    const str = atob(base64);
+                    const combined = new Uint8Array(str.length);
+                    for (let i = 0; i < str.length; i++) combined[i] = str.charCodeAt(i);
+                    const iv = combined.slice(0, 12);
+                    const data = combined.slice(12);
+                    const decrypted = await window.crypto.subtle.decrypt({ name: "AES-GCM", iv: iv }, key, data);
+                    return JSON.parse(new TextDecoder().decode(decrypted));
+                } catch (e) { return null; }
+            },
+            hashId: async (p) => {
+                const msg = new TextEncoder().encode(p);
+                const hash = await crypto.subtle.digest('SHA-256', msg);
+                return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+            }
         };
 
-        const { Terminal, Lock, Unlock, Shield, MessageSquare, Video, Mic, Plus, X, MoreVertical, Settings, Trash2, Wifi, Upload, Clock, EyeOff } = Icons;
-
-        // --- Crypto Utils ---
-        async function sha256(message) {
-            const msgBuffer = new TextEncoder().encode(message);
-            const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
-            const hashArray = Array.from(new Uint8Array(hashBuffer));
-            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-        }
-
-        // --- Components ---
-
-        // 1. Matrix Rain Background
-        const MatrixRain = () => {
-            const canvasRef = useRef(null);
-
-            useEffect(() => {
-                const canvas = canvasRef.current;
-                const ctx = canvas.getContext('2d');
-                
-                const resizeCanvas = () => {
-                    canvas.width = window.innerWidth;
-                    canvas.height = window.innerHeight;
-                };
-                
-                resizeCanvas();
-                window.addEventListener('resize', resizeCanvas);
-
-                const columns = Math.floor(canvas.width / 20);
-                const drops = Array(columns).fill(1);
-                const chars = "01CIPHERNEXUSXYZA";
-
-                const draw = () => {
-                    ctx.fillStyle = 'rgba(5, 5, 5, 0.05)';
-                    ctx.fillRect(0, 0, canvas.width, canvas.height);
-                    ctx.fillStyle = '#0F0';
-                    ctx.font = '14px monospace';
-
-                    for (let i = 0; i < drops.length; i++) {
-                        const text = chars[Math.floor(Math.random() * chars.length)];
-                        ctx.fillText(text, i * 20, drops[i] * 20);
-
-                        if (drops[i] * 20 > canvas.height && Math.random() > 0.975) {
-                            drops[i] = 0;
-                        }
-                        drops[i]++;
-                    }
-                };
-                const interval = setInterval(draw, 50);
-                
-                return () => {
-                    clearInterval(interval);
-                    window.removeEventListener('resize', resizeCanvas);
-                };
-            }, []);
-
-            return <canvas ref={canvasRef} className="fixed top-0 left-0 w-full h-full opacity-20 pointer-events-none z-0" />;
-        };
-
-        // 2. Enhanced Widget Component
-        const Widget = ({ widget, updateWidget, removeWidget }) => {
-            const [isDragging, setIsDragging] = useState(false);
-            const [offset, setOffset] = useState({ x: 0, y: 0 });
-            const [showSettings, setShowSettings] = useState(false);
-            const [messages, setMessages] = useState([]);
-            const [input, setInput] = useState("");
-            const [isWidgetActive, setIsWidgetActive] = useState(false);
-            const [statusIndicator, setStatusIndicator] = useState('active');
-            
-            // Burn Logic
-            useEffect(() => {
-                if (widget.settings.burnTime > 0 && messages.length > 0) {
-                    const timer = setTimeout(() => {
-                        setMessages(prev => prev.slice(1));
-                    }, widget.settings.burnTime * 1000);
-                    return () => clearTimeout(timer);
-                }
-            }, [messages, widget.settings.burnTime]);
-
-            const handleMouseDown = (e) => {
-                if (e.target.closest('.no-drag')) return;
-                setIsDragging(true);
-                setOffset({
-                    x: e.clientX - widget.x,
-                    y: e.clientY - widget.y
-                });
-            };
-
-            useEffect(() => {
-                const handleMouseMove = (e) => {
-                    if (!isDragging) return;
-                    updateWidget(widget.id, {
-                        x: e.clientX - offset.x,
-                        y: e.clientY - offset.y
-                    });
-                };
-                const handleMouseUp = () => setIsDragging(false);
-
-                if (isDragging) {
-                    window.addEventListener('mousemove', handleMouseMove);
-                    window.addEventListener('mouseup', handleMouseUp);
-                }
-                return () => {
-                    window.removeEventListener('mousemove', handleMouseMove);
-                    window.removeEventListener('mouseup', handleMouseUp);
-                };
-            }, [isDragging, offset, updateWidget, widget.id]);
-
-            const sendMessage = (e) => {
-                e.preventDefault();
-                if (!input.trim()) return;
-                setMessages([...messages, { text: input, id: Date.now() }]);
-                setInput("");
-            };
-
-            const toggleSetting = (key, value) => {
-                updateWidget(widget.id, {
-                    settings: { ...widget.settings, [key]: value }
-                });
-            };
-
-            // Widget Status Indicator
-            const updateStatus = () => {
-                if (widget.settings.encryption === 'AES-256') {
-                    setStatusIndicator('active');
-                } else if (widget.settings.encryption === 'RSA-4096') {
-                    setStatusIndicator('secure');
-                } else {
-                    setStatusIndicator('active');
-                }
-            };
-
-            useEffect(() => {
-                updateStatus();
-            }, [widget.settings.encryption]);
-
-            // Render different bodies based on type
-            const renderBody = () => {
-                switch (widget.type) {
-                    case 'text':
-                        return (
-                            <div className="flex flex-col h-full">
-                                <div className="flex-1 overflow-y-auto p-2 space-y-2 no-drag custom-scrollbar">
-                                    {messages.length === 0 && (
-                                        <div className="text-gray-600 text-xs italic text-center mt-4">Encrypted Channel Established</div>
-                                    )}
-                                    {messages.map(m => (
-                                        <div key={m.id} className="bg-gray-900 border border-green-900 p-2 rounded text-sm break-words">
-                                            <span className="text-green-400 font-bold mr-2">&gt;</span>{m.text}
-                                        </div>
-                                    ))}
-                                </div>
-                                <form onSubmit={sendMessage} className="p-2 border-t border-green-900 flex gap-2 no-drag">
-                                    <input 
-                                        type="text" 
-                                        value={input}
-                                        onChange={e => setInput(e.target.value)}
-                                        className="flex-1 bg-black border border-green-800 text-green-500 px-2 py-1 text-sm focus:outline-none focus:border-green-400"
-                                        placeholder="Type encrypted message..."
-                                    />
-                                    <button type="submit" className="text-green-500 hover:text-green-300"><Wifi size={16}/></button>
-                                </form>
-                            </div>
-                        );
-                    case 'voice':
-                        return (
-                            <div className="flex flex-col items-center justify-center h-full space-y-4">
-                                <div className="w-24 h-24 rounded-full border-2 border-green-500 flex items-center justify-center relative animate-pulse">
-                                    <Mic size={32} className="text-green-400" />
-                                    <div className="absolute inset-0 border border-green-500 rounded-full scale-125 opacity-30"></div>
-                                </div>
-                                <div className="text-xs text-green-600 animate-blink">SECURE AUDIO LINK ACTIVE</div>
-                                <div className="flex gap-4 w-full justify-center px-4 no-drag">
-                                    {/* Fake waveform */}
-                                    <div className="h-8 flex items-end gap-1 flex-1 justify-center">
-                                        {[...Array(10)].map((_, i) => (
-                                            <div key={i} className="w-1 bg-green-500" style={{height: `${Math.random() * 100}%`, opacity: 0.7}}></div>
-                                        ))}
-                                    </div>
-                                </div>
-                            </div>
-                        );
-                    case 'video':
-                        return (
-                            <div className="relative h-full w-full bg-black overflow-hidden flex items-center justify-center border-t border-green-900">
-                                <div className="absolute inset-0 bg-[url('https://placehold.co/600x400/000000/00ff41?text=NO+SIGNAL')] opacity-10 bg-cover"></div>
-                                <Video size={48} className="text-gray-800" />
-                                <div className="absolute inset-0 bg-red-900/10 mix-blend-color-dodge pointer-events-none"></div>
-                                <div className="absolute top-2 left-2 text-xs bg-red-900/50 text-red-400 px-2 py-0.5 rounded border border-red-800 animate-pulse">
-                                    REC [ENCRYPTED]
-                                </div>
-                                <div className="absolute bottom-4 left-0 w-full flex justify-center gap-4 no-drag">
-                                    <button className="p-2 bg-gray-900 rounded-full border border-green-800 hover:bg-green-900/50 text-green-500"><Mic size={16}/></button>
-                                    <button className="p-2 bg-gray-900 rounded-full border border-red-800 hover:bg-red-900/50 text-red-500"><EyeOff size={16}/></button>
-                                </div>
-                            </div>
-                        );
-                    default: return null;
-                }
-            };
-
-            return (
-                <div 
-                    className={`absolute flex flex-col bg-gray-950 border border-green-600/50 shadow-[0_0_15px_rgba(0,255,65,0.1)] backdrop-blur-sm transition-all hover:shadow-[0_0_20px_rgba(0,255,65,0.2)] ${isWidgetActive ? 'animate-pulse' : ''}`}
-                    style={{ 
-                        left: widget.x, 
-                        top: widget.y, 
-                        width: widget.w, 
-                        height: widget.h,
-                        zIndex: isDragging ? 50 : 10
-                    }}
-                    onMouseEnter={() => setIsWidgetActive(true)}
-                    onMouseLeave={() => setIsWidgetActive(false)}
-                >
-                    {/* Header */}
-                    <div 
-                        className="bg-green-900/20 border-b border-green-600/30 p-2 flex justify-between items-center cursor-move select-none"
-                        onMouseDown={handleMouseDown}
-                    >
-                        <div className="flex items-center gap-2 text-xs font-bold text-green-400 uppercase tracking-wider">
-                            {widget.type === 'text' && <Terminal size={14} />}
-                            {widget.type === 'voice' && <Mic size={14} />}
-                            {widget.type === 'video' && <Video size={14} />}
-                            ID: {widget.id.slice(-4)}
-                        </div>
-                        <div className="flex items-center gap-1 no-drag">
-                            <button onClick={() => setShowSettings(!showSettings)} className="hover:text-white text-green-600 transition-colors"><MoreVertical size={14} /></button>
-                            <button onClick={() => removeWidget(widget.id)} className="hover:text-red-500 text-green-800 transition-colors"><X size={14} /></button>
-                        </div>
-                    </div>
-
-                    {/* Status Indicator */}
-                    <div className="absolute top-2 left-0 w-full h-1 flex items-center justify-end">
-                        <div 
-                            className={`h-full bg-[${statusIndicator === 'active' ? 'linear-gradient(to right, #00ff41, #00cc33)' : 'linear-gradient(to right, #ff4444, #ff1a1a)'}] rounded-r-lg`}
-                            style={{ width: `${Math.min(100, widget.settings.encryption === 'RSA-4096' ? 80 : 100)}%` }}
-                        ></div>
-                    </div>
-
-                    {/* Content */}
-                    <div className="flex-1 overflow-hidden relative">
-                        {renderBody()}
-                        
-                        {/* Status Footer */}
-                        <div className="absolute bottom-0 right-0 p-1 text-[10px] text-green-800 bg-black/50 border-t border-l border-green-900/30 rounded-tl">
-                            {widget.settings.encryption}
-                        </div>
-                    </div>
-
-                    {/* Resize Handle */}
-                    <div 
-                        className="absolute bottom-0 right-0 w-4 h-4 cursor-se-resize no-drag z-20 flex items-end justify-end p-0.5"
-                        onMouseDown={(e) => {
-                            e.stopPropagation(); 
-                        }}
-                    >
-                       <div className="w-1.5 h-1.5 bg-green-600/50"></div>
-                    </div>
-                </div>
-            );
-        };
-
-        // 3. Main Application
         const App = () => {
-            const [isAuthReady, setIsAuthReady] = useState(false);
-            const [user, setUser] = useState(null);
-            const [view, setView] = useState('login'); // login | dashboard
-            const [code, setCode] = useState('');
-            const [codeError, setCodeError] = useState('');
-            const [isLoading, setIsLoading] = useState(false);
+            const [view, setView] = useState('boot'); 
+            const [pass, setPass] = useState('');
+            const [status, setStatus] = useState('');
             const [widgets, setWidgets] = useState([]);
+            const [key, setKey] = useState(null);
             const [docId, setDocId] = useState(null);
-            const [sessionHistory, setSessionHistory] = useState([]);
-            const [autoSaveEnabled, setAutoSaveEnabled] = useState(true);
+            const [isGlitching, setIsGlitching] = useState(false);
+            const [isStealth, setIsStealth] = useState(false);
+            const [userId, setUserId] = useState('UNK');
+
+            // Security: Stealth Mode (ESC Key) & Inactivity
+            const idleTimer = useRef(null);
             
-            // Auth Init
             useEffect(() => {
-                const initAuth = async () => {
-                    const authInstance = getAuth();
-                    if (authInstance) {
-                        const unsubscribe = authInstance.onAuthStateChanged(currentUser => {
-                            setUser(currentUser);
-                            setIsAuthReady(true);
-                        });
-                        return () => unsubscribe();
-                    } else {
-                        setTimeout(initAuth, 100);
-                    }
+                const handleKeyDown = (e) => {
+                    if (e.key === 'Escape') setIsStealth(prev => !prev);
+                    resetTimer();
                 };
-                initAuth();
-            }, []);
+                const resetTimer = () => {
+                    if (view !== 'dashboard' || isStealth) return;
+                    clearTimeout(idleTimer.current);
+                    idleTimer.current = setTimeout(() => { setIsGlitching(true); setTimeout(() => window.location.reload(), 2000); }, 60000);
+                };
 
-            // Code Validation
-            const validateCode = (input) => {
-                if (input.length < 16) return "Length must be > 16 characters.";
-                if (!/[A-Z]/.test(input)) return "Must contain UPPERCASE.";
-                if (!/[a-z]/.test(input)) return "Must contain lowercase.";
-                if (!/[0-9]/.test(input)) return "Must contain numbers.";
-                if (!/[!@#$%^&*()_+\-=$${};':"\\|,.&lt;&gt;\/?]/.test(input)) return "Must contain special chars.";
-                return "";
-            };
+                window.addEventListener('mousemove', resetTimer);
+                window.addEventListener('keydown', handleKeyDown);
+                return () => { 
+                    window.removeEventListener('mousemove', resetTimer); 
+                    window.removeEventListener('keydown', handleKeyDown); 
+                };
+            }, [view, isStealth]);
 
-            const handleUnlock = async (e) => {
+            // Security: Traffic Noise
+            useEffect(() => {
+                if (view !== 'dashboard' || !docId) return;
+                const interval = setInterval(async () => {
+                    try { await window.fb.updateDoc(window.fb.doc(window.db, 'nexus_secure_storage', docId), { heartbeat: window.fb.serverTimestamp() }); } catch(e) {}
+                }, 45000);
+                return () => clearInterval(interval);
+            }, [view, docId]);
+
+            useEffect(() => { setTimeout(() => setView('login'), 2000); }, []);
+
+            const handleLogin = async (e) => {
                 e.preventDefault();
-                setCodeError('');
+                if (pass === '1715') { setView('duress'); return; }
+                if (pass.length < 6) { setStatus('KEY FRAGMENT TOO SHORT'); return; }
+                setStatus('AUTHENTICATING...');
                 
-                if (!isAuthReady || !user) {
-                    setCodeError("SYSTEM_INIT_PENDING: Please wait for system authentication.");
-                    return;
-                }
-
-                const error = validateCode(code);
-                if (error) {
-                    setCodeError(error);
-                    return;
-                }
-
-                setIsLoading(true);
-                const dbInstance = getDb();
-                if (!dbInstance) {
-                    setCodeError("DATABASE_ERROR: Connection failed.");
-                    setIsLoading(false);
-                    return;
-                }
-
                 try {
-                    // 1. Generate Doc ID
-                    const generatedDocId = await sha256(code);
-                    setDocId(generatedDocId);
-
-                    // 2. Fetch or Create
-                    const docRef = collection(dbInstance, 'artifacts', appId, 'public', 'data', 'nexus_spaces');
-                    const myDoc = doc(docRef, generatedDocId);
-                    const docSnap = await getDoc(myDoc);
-
-                    if (docSnap.exists()) {
-                        // Restore session
-                        const data = docSnap.data();
-                        if (data.widgets) {
-                            setWidgets(JSON.parse(data.widgets));
-                        }
-                    } else {
-                        // New session
-                        await setDoc(myDoc, {
-                            created: serverTimestamp(),
-                            widgets: JSON.stringify([]),
-                            lastAccess: serverTimestamp()
-                        });
-                    }
+                    const u = await window.fb.signInAnonymously(window.auth);
+                    setUserId(u.user.uid.substring(0, 4).toUpperCase());
                     
-                    // 3. Add to session history
-                    // Correct pattern: /artifacts/{appId}/public/data/nexus_spaces_history
-                    // We store a flat collection of history items, referenced by session ID
-                    const historyCollection = collection(dbInstance, 'artifacts', appId, 'public', 'data', 'nexus_session_history');
-                    
-                    await addDoc(historyCollection, {
-                        sessionId: generatedDocId,
-                        createdAt: serverTimestamp(),
-                        user: user.uid,
-                        encryption: 'AES-256'
+                    const cryptoKey = await Crypto.getKey(pass);
+                    const id = await Crypto.hashId(pass);
+                    setKey(cryptoKey);
+                    setDocId(id);
+
+                    const docRef = window.fb.doc(window.db, 'nexus_secure_storage', id);
+                    window.fb.onSnapshot(docRef, async (snap) => {
+                        if (snap.exists()) {
+                            const raw = snap.data();
+                            if (raw.encryptedData) {
+                                const dec = await Crypto.decrypt(raw.encryptedData, cryptoKey);
+                                if (dec) setWidgets(dec);
+                            }
+                        } else { saveData([], cryptoKey, id); }
                     });
-
-                    // 4. Update local session history view
-                    setSessionHistory(prev => [...prev, { id: generatedDocId, timestamp: new Date(), encryption: 'AES-256' }]);
-                    
-                    setTimeout(() => {
-                        setView('dashboard');
-                        setIsLoading(false);
-                    }, 1000);
-
-                } catch (err) {
-                    console.error("Error accessing nexus:", err);
-                    setCodeError("CONNECTION_REFUSED: " + err.message);
-                    setIsLoading(false);
-                }
+                    setStatus('UPLINK ESTABLISHED');
+                    setTimeout(() => setView('dashboard'), 800);
+                } catch (err) { setStatus('CONNECTION REFUSED'); }
             };
 
-            const saveLayout = async (newWidgets) => {
-                if (!isAuthReady || !user || !docId || !autoSaveEnabled) return;
-                const dbInstance = getDb();
-                if (!dbInstance) return;
+            const saveData = async (data, activeKey, activeId) => {
+                if (!activeKey || !activeId) return;
+                const enc = await Crypto.encrypt(data, activeKey);
+                await window.fb.setDoc(window.fb.doc(window.db, 'nexus_secure_storage', activeId), { encryptedData: enc, updated: window.fb.serverTimestamp() });
+            };
 
+            const handleNuke = async () => {
+                if (!window.confirm("CONFIRM PROTOCOL: NUKE?")) return;
+                setIsGlitching(true);
                 try {
-                    const docRef = doc(dbInstance, 'artifacts', appId, 'public', 'data', 'nexus_spaces', docId);
-                    await updateDoc(docRef, {
-                        widgets: JSON.stringify(newWidgets),
-                        lastAccess: serverTimestamp()
-                    });
-                } catch(e) {
-                    console.error("Auto-save failed", e);
-                }
+                    const ref = window.fb.doc(window.db, 'nexus_secure_storage', docId);
+                    for(let i=0; i<3; i++) await window.fb.setDoc(ref, { encryptedData: "00000000000000000000000000000000" });
+                    await window.fb.deleteDoc(ref);
+                    setTimeout(() => window.location.reload(), 1000);
+                } catch (e) { window.location.reload(); }
             };
 
             const addWidget = (type) => {
-                const newWidget = {
-                    id: Date.now().toString(),
-                    type,
-                    x: 100 + (widgets.length * 20),
-                    y: 100 + (widgets.length * 2.5 * 10),
-                    w: 300,
-                    h: type === 'video' ? 240 : 350,
-                    scale: 1,
-                    settings: {
-                        encryption: 'AES-256',
-                        burnTime: 0,
-                    }
-                };
-                const updated = [...widgets, newWidget];
+                const w = { id: Date.now().toString(), type, x: 50 + (widgets.length*20), y: 100, w: 320, h: 240, content: type === 'chat' ? [] : '' };
+                const updated = [...widgets, w];
                 setWidgets(updated);
-                saveLayout(updated);
+                saveData(updated, key, docId);
             };
 
-            const updateWidget = (id, changes) => {
-                const updated = widgets.map(w => w.id === id ? { ...w, ...changes } : w);
+            const updateWidget = (id, data) => {
+                const updated = widgets.map(w => w.id === id ? { ...w, ...data } : w);
                 setWidgets(updated);
-                // Saving relies on mouseup event
             };
-            
-            // Use effect to catch drag ends for saving
-            useEffect(() => {
-                const handleMouseUp = () => {
-                    if (view === 'dashboard' && widgets.length > 0) {
-                        saveLayout(widgets);
-                    }
-                };
-                window.addEventListener('mouseup', handleMouseUp);
-                return () => window.removeEventListener('mouseup', handleMouseUp);
-            }, [widgets, view, isAuthReady, user, docId, autoSaveEnabled]);
 
-            const removeWidget = (id) => {
+            const deleteWidget = (id) => {
                 const updated = widgets.filter(w => w.id !== id);
                 setWidgets(updated);
-                saveLayout(updated);
+                saveData(updated, key, docId);
             };
 
-            const handleLogout = () => {
-                setView('login');
-                setCode('');
-                setWidgets([]);
-                setDocId(null);
-                setSessionHistory([]);
-            };
+            if (isGlitching) return <div className="h-screen w-full bg-black flex items-center justify-center overflow-hidden"><div className="text-red-600 font-bold text-6xl glitch-anim">SYSTEM FAILURE</div></div>;
+            if (isStealth) return <div className="h-screen w-full bg-white flex flex-col items-center justify-center text-gray-800 font-sans"><h1 className="text-4xl font-bold mb-2">404 Not Found</h1><p>The requested resource could not be found on this server.</p><div className="mt-8 border-t pt-4 text-sm text-gray-500">Apache/2.4.41 (Ubuntu) Server at 127.0.0.1 Port 80</div></div>;
+            if (view === 'duress') return <DuressDashboard />;
+            if (view === 'boot') return <div className="h-screen w-full flex items-center justify-center flex-col text-green-500"><div className="scanline"></div><div className="text-4xl font-bold tracking-widest mb-4">CIPHER_NEXUS</div><div className="text-xs">ESTABLISHING SECURE ENVIRONMENT...</div><div className="w-64 h-1 bg-green-900 mt-4 overflow-hidden"><div className="h-full bg-green-500 animate-[load_2s_ease-out_forwards]" style={{width: '0%'}}></div></div><style>{`@keyframes load { to { width: 100%; } }`}</style></div>;
 
-            // --- Render Logic ---
-
-            if (view === 'login') {
-                return (
-                    <div className="relative min-h-screen flex items-center justify-center p-4">
-                        <MatrixRain />
-                        <div className="scanline"></div>
-                        
-                        <div className="relative z-10 w-full max-w-md bg-black/80 border border-green-500/50 p-8 shadow-[0_0_50px_rgba(0,255,65,0.1)] backdrop-blur-md">
-                            <div className="flex items-center justify-center mb-6 text-green-500 animate-pulse">
-                                <Shield size={48} />
-                            </div>
-                            
-                            <h1 className="text-3xl font-bold text-center mb-2 tracking-widest glow-text">CIPHER_NEXUS</h1>
-                            <p className="text-xs text-center text-green-700 mb-8 uppercase tracking-[0.2em]">Secure Decentralized Uplink</p>
-                            
-                            <form onSubmit={handleUnlock} className="space-y-6">
-                                <div>
-                                    <label className="text-xs text-green-600 uppercase mb-1 block">Enter Unique Access Code</label>
-                                    <div className="relative">
-                                        <Lock className="absolute left-3 top-3 text-green-700" size={16} />
-                                        <input 
-                                            type="password" 
-                                            value={code}
-                                            onChange={(e) => setCode(e.target.value)}
-                                            className="w-full bg-black border border-green-800 text-green-500 pl-10 pr-4 py-3 focus:border-green-400 focus:outline-none focus:shadow-[0_0_10px_rgba(0,255,65,0.2)] transition-all font-mono"
-                                            placeholder="••••••••••••••••"
-                                            autoComplete="new-password"
-                                        />
-                                    </div>
-                                    <div className="text-[10px] text-gray-500 mt-2 flex justify-between">
-                                        <span>Min 16 chars</span>
-                                        <span>Aa#1</span>
-                                    </div>
-                                </div>
-                                
-                                {codeError && (
-                                    <div className="bg-red-900/20 border border-red-800 p-2 text-red-500 text-xs flex items-center gap-2">
-                                        <X size={12} /> {codeError}
-                                    </div>
-                                )}
-
-                                {!isAuthReady && (
-                                    <div className="bg-yellow-900/20 border border-yellow-800 p-2 text-yellow-500 text-xs flex items-center gap-2 animate-pulse">
-                                        <Clock size={12} /> AWAITING SYSTEM AUTHENTICATION...
-                                    </div>
-                                )}
-                                
-                                <button 
-                                    type="submit" 
-                                    disabled={isLoading || !isAuthReady}
-                                    className={`w-full bg-green-900/30 hover:bg-green-800/50 border border-green-600 text-green-400 py-3 uppercase tracking-widest text-sm transition-all duration-300 flex items-center justify-center gap-2 ${isLoading || !isAuthReady ? 'opacity-50 cursor-not-allowed' : 'hover:shadow-[0_0_15px_rgba(0,255,65,0.3)]'}`}
-                                >
-                                    {isLoading ? 'Decrypting Environment...' : <><Unlock size={16} /> Initialize Link</>}
-                                </button>
-                            </form>
-
-                            <div className="mt-6 border-t border-green-900/50 pt-4 text-[10px] text-green-800 font-mono">
-                                <p>SYS_STATUS: ONLINE</p>
-                                <p>ENCRYPTION: AES-256-GCM [READY]</p>
-                                <p>NODE: {appId.substring(0,8)}... [CONNECTED]</p>
-                            </div>
-                        </div>
-                    </div>
-                );
-            }
-
-            // DASHBOARD VIEW
-            return (
-                <div className="relative min-h-screen bg-gray-950 overflow-hidden crt">
+            if (view === 'login') return (
+                <div className="h-screen w-full flex items-center justify-center p-4 relative">
                     <div className="scanline"></div>
-                    
-                    {/* Top Bar */}
-                    <div className="absolute top-0 left-0 right-0 h-14 bg-black/90 border-b border-green-900 flex items-center justify-between px-6 z-40">
-                        <div className="flex items-center gap-4">
-                            <Shield className="text-green-500" size={20} />
-                            <div>
-                                <h2 className="text-sm font-bold tracking-widest text-green-500">SESSION_ID: {docId ? docId.substring(0, 12) : '...'}</h2>
-                                <div className="text-[10px] text-green-800">USER: {user?.uid.substring(0, 8)}... [SECURE]</div>
+                    <div className="term-border p-8 bg-black/90 max-w-md w-full relative z-20">
+                        <div className="flex justify-center mb-4 text-green-500"><Icon d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" className="w-12 h-12" /></div>
+                        <h1 className="text-2xl font-bold text-center mb-2 tracking-[0.2em] glow-text">NEXUS V5</h1>
+                        <div className="text-[10px] text-center text-green-700 mb-8">AES-256-GCM ENCRYPTED GATEWAY</div>
+                        <form onSubmit={handleLogin} className="space-y-6">
+                            <div className="relative">
+                                <label className="text-[10px] text-green-600 absolute -top-3 left-2 bg-black px-1">ACCESS KEY</label>
+                                <input type="password" value={pass} onChange={e => setPass(e.target.value)} className="w-full bg-black border border-green-700 p-3 text-center text-green-400 focus:outline-none focus:border-green-400 focus:shadow-[0_0_15px_rgba(0,255,65,0.3)] transition-all font-mono tracking-widest" placeholder="••••••••••••" autoFocus />
                             </div>
-                        </div>
-                        
+                            <button className="w-full bg-green-900/20 border border-green-600 py-3 text-green-400 hover:bg-green-500 hover:text-black transition-all uppercase text-sm font-bold tracking-widest">INITIALIZE</button>
+                        </form>
+                        <div className="mt-4 text-center h-4 text-xs text-red-500 font-mono flicker">{status}</div>
+                    </div>
+                </div>
+            );
+
+            return (
+                <div className="h-screen w-full relative overflow-hidden crt" onMouseUp={() => saveData(widgets, key, docId)}>
+                    <div className="scanline"></div>
+                    {/* Header */}
+                    <div className="absolute top-0 w-full h-12 bg-black/90 border-b border-green-900 flex items-center justify-between px-4 z-50">
                         <div className="flex items-center gap-4">
-                            <button 
-                                onClick={handleLogout}
-                                className="border border-green-900 text-green-700 hover:text-green-400 hover:border-green-500 px-3 py-1 text-xs uppercase transition-colors"
-                            >
-                                Terminate
-                            </button>
+                            <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+                            <div className="text-xs text-green-600">SESSION: {docId?.substring(0,8)}... | ID: {userId}</div>
+                        </div>
+                        <div className="flex gap-4 items-center">
+                            <div className="text-xs text-green-800">ESC=STEALTH</div>
+                            <button onClick={handleNuke} className="text-xs font-bold text-red-600 hover:text-red-100 border border-red-900 bg-red-900/10 px-3 py-1 hover:bg-red-600 hover:border-red-600 transition-all">[ NUKE ]</button>
                         </div>
                     </div>
-
-                    {/* Toolbar / Dock */}
-                    <div className="absolute left-4 top-1/2 -translate-y-1/2 flex flex-col gap-4 z-40">
-                         <div className="bg-black/80 border border-green-900 p-2 rounded-lg backdrop-blur space-y-4 shadow-lg shadow-green-900/20">
-                            <button onClick={() => addWidget('text')} className="group relative flex items-center justify-center p-2 text-green-600 hover:text-green-300 hover:bg-green-900/30 rounded transition-all">
-                                <MessageSquare size={24} /> <Terminal size={20} />
-                                <span className="absolute left-full ml-2 bg-black border border-green-800 text-green-500 text-xs px-2 py-1 opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none">New Text Channel</span>
-                            </button>
-                            <button onClick={() => addWidget('voice')} className="group relative flex items-center justify-center p-2 text-green-600 hover:text-green-300 hover:bg-green-900/30 rounded transition-all">
-                                <Mic size={20} />
-                                <span className="absolute left-full ml-2 bg-black border border-green-800 text-green-500 text-xs px-2 py-1 opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none">New Voice Uplink</span>
-                            </button>
-                            <button onClick={() => addWidget('video')} className="group relative flex items-center justify-center p-2 text-green-600 hover:text-green-300 hover:bg-green-900/30 rounded transition-all">
-                                <Video size={20} />
-                                <span className="absolute left-full ml-2 bg-black border border-green-800 text-green-500 text-xs px-2 py-1 opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none">New Video Feed</span>
-                            </button>
-                            <div className="h-px bg-green-900 w-full my-2"></div>
-                            <button className="group relative flex items-center justify-center p-2 text-gray-600 cursor-not-allowed">
-                                <Upload size={20} />
-                            </button>
-                         </div>
+                    {/* Toolbar */}
+                    <div className="absolute left-4 top-20 z-40 flex flex-col gap-2">
+                        <div className="bg-black/80 border border-green-900 p-2 space-y-2">
+                            <button onClick={() => addWidget('chat')} className="w-full text-left p-2 hover:bg-green-900/50 text-xs text-green-400 border border-transparent hover:border-green-700 transition-all">[+] CHAT</button>
+                            <button onClick={() => addWidget('flash')} className="w-full text-left p-2 hover:bg-green-900/50 text-xs text-yellow-400 border border-transparent hover:border-yellow-700 transition-all">[+] FLASH MSG</button>
+                            <button onClick={() => addWidget('geo')} className="w-full text-left p-2 hover:bg-green-900/50 text-xs text-blue-400 border border-transparent hover:border-blue-700 transition-all">[+] GEO DROP</button>
+                            <button onClick={() => addWidget('note')} className="w-full text-left p-2 hover:bg-green-900/50 text-xs text-green-400 border border-transparent hover:border-green-700 transition-all">[+] NOTE</button>
+                        </div>
                     </div>
-
-                    {/* Workspace Area */}
-                    <div className="absolute inset-0 pt-14 pointer-events-auto overflow-hidden">
-                        {/* Grid Background */}
-                        <div 
-                            className="absolute inset-0 opacity-10 pointer-events-none"
-                            style={{
-                                backgroundImage: `linear-gradient(#00ff41 1px, transparent 1px), linear-gradient(90deg, #00ff41 1px, transparent 1px)`,
-                                backgroundSize: '40px 40px'
-                            }}
-                        ></div>
-
-                        {widgets.length === 0 && (
-                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                                <div className="text-center text-green-900">
-                                    <h3 className="text-2xl font-bold tracking-[1em] mb-4 opacity-50">EMPTY_VOID</h3>
-                                    <p className="text-sm">INITIALIZE COMMUNICATION PROTOCOLS FROM DOCK</p>
-                                </div>
-                            </div>
-                        )}
-
-                        {widgets.map(w => (
-                            <Widget 
-                                key={w.id} 
-                                widget={w} 
-                                updateWidget={updateWidget} 
-                                removeWidget={removeWidget} 
-                            />
-                        ))}
-                    </div>
-
-                    {/* Session History Panel */}
-                    <div className="absolute bottom-8 left-4 right-4 z-30 bg-black/80 border border-green-900/50 rounded-xl backdrop-blur-md p-4 shadow-lg">
-                        <div className="flex justify-between items-center mb-3">
-                            <h3 className="text-sm font-bold text-green-500">Session History</h3>
-                            <button 
-                                onClick={() => setAutoSaveEnabled(!autoSaveEnabled)}
-                                className="text-green-500 hover:text-green-300"
-                            >
-                                {autoSaveEnabled ? 'Auto-save: ON' : 'Auto-save: OFF'}
-                            </button>
-                        </div>
-                        
-                        <div className="space-y-2 max-h-60 overflow-y-auto">
-                            {sessionHistory.map(h => (
-                                <div 
-                                    key={h.id} 
-                                    className="flex items-center justify-between p-2 bg-gray-900 rounded-md border border-green-900/50"
-                                >
-                                    <div className="flex items-center gap-2">
-                                        <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                                        <span className="text-xs text-green-500">{h.timestamp.toLocaleTimeString()}</span>
-                                    </div>
-                                    <div className="text-xs text-green-500 flex items-center gap-1">
-                                        <span>Session: {h.id.substring(0, 8)}...</span>
-                                        <span className="text-green-500">&bull;</span>
-                                        <span>{h.encryption}</span>
-                                    </div>
-                                    <button 
-                                        onClick={() => {
-                                            navigator.clipboard.writeText(`https://ciphernexus.example.com/session?session=${h.id}`)
-                                                .then(() => alert(`Session link copied: https://ciphernexus.example.com/session?session=${h.id}`))
-                                                .catch(err => console.error("Copy failed:", err));
-                                        }}
-                                        className="text-green-500 hover:text-green-300"
-                                    >
-                                        <Wifi size={14} />
-                                    </button>
-                                </div>
-                            ))}
-                        </div>
-                        
-                        <div className="mt-3 flex justify-end">
-                            <button 
-                                onClick={() => {
-                                    if (docId) {
-                                        const shareUrl = `https://ciphernexus.example.com/session?session=${docId}`;
-                                        navigator.clipboard.writeText(shareUrl).then(() => alert('Session URL copied!'));
-                                    }
-                                }}
-                                className="bg-green-900/30 hover:bg-green-800/50 text-green-400 px-3 py-1 rounded-md text-sm flex items-center gap-1"
-                            >
-                                <IconBase className="text-green-500">
-                                    <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path>
-                                    <polyline points="16 6 12 2 8 6"></polyline>
-                                    <line x1="12" y1="2" x2="12" y2="15"></line>
-                                </IconBase> 
-                                Share Session
-                            </button>
-                        </div>
+                    {/* Desktop */}
+                    <div className="absolute inset-0 pt-12">
+                        {widgets.length === 0 && <div className="h-full flex items-center justify-center opacity-30 select-none pointer-events-none"><div className="text-center"><h2 className="text-4xl font-bold tracking-widest mb-2">SECURE VOID</h2><p className="text-sm">AWAITING INPUT</p></div></div>}
+                        {widgets.map(w => <Widget key={w.id} data={w} userId={userId} update={updateWidget} onDelete={deleteWidget} onSave={() => saveData(widgets, key, docId)} />)}
                     </div>
                 </div>
             );
         };
 
-        // Wait for window.initFirebase to ensure services are attached to window
-        const checkFirebaseReady = () => {
-            if (window.firebaseApp && window.firebaseAuth && window.firebaseDb) {
-                const root = ReactDOM.createRoot(document.getElementById('root'));
-                root.render(<App />);
-            } else {
-                setTimeout(checkFirebaseReady, 100);
-            }
+        const Widget = ({ data, userId, update, onDelete, onSave }) => {
+            const [isDragging, setIsDragging] = useState(false);
+            const [pos, setPos] = useState({ x: data.x, y: data.y });
+            const offset = useRef({x:0,y:0});
+            const [input, setInput] = useState('');
+            const [flashState, setFlashState] = useState(data.type === 'flash' ? 'hidden' : null); // hidden, revealed, expired
+
+            useEffect(() => setPos({x: data.x, y: data.y}), [data.x, data.y]);
+
+            const startDrag = (e) => {
+                if(['TEXTAREA','BUTTON','INPUT'].includes(e.target.tagName)) return;
+                setIsDragging(true);
+                offset.current = { x: e.clientX - pos.x, y: e.clientY - pos.y };
+            };
+
+            useEffect(() => {
+                const move = (e) => { if(isDragging) setPos({ x: e.clientX - offset.current.x, y: e.clientY - offset.current.y }); };
+                const end = () => { if(isDragging) { setIsDragging(false); update(data.id, { x: pos.x, y: pos.y }); onSave(); } };
+                if(isDragging) { window.addEventListener('mousemove', move); window.addEventListener('mouseup', end); }
+                return () => { window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', end); };
+            }, [isDragging, pos]);
+
+            const handleChatSubmit = (e) => {
+                e.preventDefault();
+                if(!input.trim()) return;
+                const newMsg = { id: Date.now(), user: userId, text: input, time: new Date().toLocaleTimeString() };
+                const newContent = [...(data.content || []), newMsg];
+                update(data.id, { content: newContent });
+                onSave(); 
+                setInput('');
+            };
+
+            // Flash Message Logic
+            const revealFlash = () => {
+                setFlashState('revealed');
+                // Burn after 10 seconds
+                setTimeout(() => {
+                    onDelete(data.id); // Delete from DB
+                }, 10000);
+            };
+
+            // Geo Logic
+            const dropGeo = () => {
+                if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition((p) => {
+                        update(data.id, { content: `${p.coords.latitude.toFixed(5)}, ${p.coords.longitude.toFixed(5)}` });
+                        onSave();
+                    });
+                }
+            };
+
+            const renderBody = () => {
+                if(data.type === 'note') return (
+                    <textarea className="flex-1 bg-transparent text-green-400 p-2 text-sm font-mono focus:outline-none resize-none placeholder-green-900/50" value={data.content} onChange={e => update(data.id, { content: e.target.value })} onBlur={onSave} spellCheck="false" placeholder="> ENCRYPTED DATA ENTRY..." />
+                );
+                if(data.type === 'chat') return (
+                    <div className="flex flex-col h-full">
+                        <div className="flex-1 overflow-y-auto p-2 space-y-1 bg-black/50">
+                            {(data.content || []).map(m => (
+                                <div key={m.id} className="text-xs break-words border-l-2 border-green-900 pl-2 mb-1">
+                                    <span className="text-[10px] text-green-700">{m.time}</span> <span className="font-bold text-green-500">&lt;{m.user}&gt;</span> <span className="text-green-300">{m.text}</span>
+                                </div>
+                            ))}
+                        </div>
+                        <form onSubmit={handleChatSubmit} className="border-t border-green-800 flex"><input className="flex-1 bg-black text-green-400 p-2 text-xs focus:outline-none" value={input} onChange={e=>setInput(e.target.value)} placeholder="TRANSMIT..." /><button className="px-3 bg-green-900/20 text-green-500 hover:bg-green-800 text-xs">SEND</button></form>
+                    </div>
+                );
+                if(data.type === 'flash') return (
+                    <div className="flex flex-col h-full items-center justify-center p-4 text-center">
+                        {flashState === 'hidden' && data.content ? (
+                            <button onClick={revealFlash} className="border border-yellow-500 text-yellow-500 px-4 py-2 hover:bg-yellow-900/30 animate-pulse text-xs">
+                                [ DECRYPT FLASH PACKET ]<br/>(BURNS IN 10S)
+                            </button>
+                        ) : !data.content ? (
+                            <textarea className="w-full h-full bg-transparent text-yellow-400 text-xs p-2 resize-none outline-none" placeholder="TYPE SECRET MESSAGE (BURNS AFTER READING)..." onBlur={e => { update(data.id, { content: e.target.value }); onSave(); }} />
+                        ) : (
+                            <div className="text-yellow-400 text-sm font-mono border border-yellow-700 p-2 w-full h-full overflow-auto">
+                                <div className="text-[10px] text-yellow-700 mb-2">BURNING SEQUENCE INITIATED...</div>
+                                {data.content}
+                            </div>
+                        )}
+                    </div>
+                );
+                if(data.type === 'geo') return (
+                    <div className="flex flex-col h-full items-center justify-center p-4">
+                        <div className="text-blue-400 text-xl font-bold tracking-widest mb-2">{data.content || "NO SIGNAL"}</div>
+                        {!data.content && <button onClick={dropGeo} className="border border-blue-500 text-blue-500 px-3 py-1 hover:bg-blue-900/30 text-xs">ACQUIRE COORDS</button>}
+                        {data.content && <a href={`https://www.google.com/maps/search/?api=1&query=${data.content}`} target="_blank" className="text-[10px] text-blue-600 underline">OPEN SAT-LINK</a>}
+                    </div>
+                );
+            };
+
+            const borderColor = data.type === 'flash' ? 'border-yellow-600' : data.type === 'geo' ? 'border-blue-600' : 'border-green-500';
+            const headerColor = data.type === 'flash' ? 'bg-yellow-900/20 border-yellow-800' : data.type === 'geo' ? 'bg-blue-900/20 border-blue-800' : 'bg-green-900/20 border-green-800';
+
+            return (
+                <div className={`absolute bg-black/95 border ${borderColor} shadow-[0_0_15px_rgba(0,0,0,0.5)] flex flex-col`} style={{ left: pos.x, top: pos.y, width: 300, height: 240, zIndex: isDragging ? 50 : 10 }} onMouseDown={startDrag}>
+                    <div className={`${headerColor} border-b p-1 px-2 flex justify-between items-center cursor-move select-none`}>
+                        <span className="text-[10px] font-bold tracking-wider uppercase">{data.type}_{data.id.slice(-4)}</span>
+                        <button onClick={() => onDelete(data.id)} className="text-inherit hover:text-red-500 font-bold px-1">×</button>
+                    </div>
+                    {renderBody()}
+                </div>
+            );
         };
-        // Start the check
-        checkFirebaseReady();
+
+        const DuressDashboard = () => (
+            <div className="h-screen w-full bg-gray-100 text-gray-800 font-sans p-8 overflow-y-auto">
+                <div className="max-w-4xl mx-auto">
+                    <div className="flex justify-between items-center mb-8 border-b pb-4"><h1 className="text-2xl font-bold text-blue-600">Server Diagnostic Tool v4.1</h1><div className="text-sm text-gray-500">Status: <span className="text-green-600">Healthy</span></div></div>
+                    <div className="grid grid-cols-2 gap-6 mb-8">
+                        <div className="bg-white p-6 rounded shadow border"><h3 className="font-bold mb-4 text-gray-700">CPU Load</h3><div className="flex items-end space-x-2 h-32">{[40,65,32,50,78,45,30,60,55,40].map((h,i)=><div key={i} className="flex-1 bg-blue-400 rounded-t" style={{height:`${h}%`}}></div>)}</div></div>
+                        <div className="bg-white p-6 rounded shadow border"><h3 className="font-bold mb-4 text-gray-700">Memory</h3><div className="text-4xl font-bold text-gray-800 mb-2">4.2 GB</div><div className="w-full bg-gray-200 rounded-full h-2.5"><div className="bg-blue-600 h-2.5 rounded-full" style={{width:'45%'}}></div></div></div>
+                    </div>
+                    <div className="bg-white p-6 rounded shadow border"><h3 className="font-bold mb-4 text-gray-700">System Logs</h3><div className="font-mono text-xs text-gray-600 space-y-1"><div>[14:20:01] Service 'apache2' restarted.</div><div>[14:18:55] Cron job completed.</div><div>[14:15:22] User 'admin' logged in.</div></div></div>
+                </div>
+            </div>
+        );
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
     </script>
 </body>
 </html>
