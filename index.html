@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>CIPHER_NEXUS | Secure Uplink</title>
+    
+    <!-- Dependencies -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, deleteDoc, updateDoc, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // YOUR CONFIGURATION
+        const firebaseConfig = {
+            apiKey: "AIzaSyBQYYnJY40FQWzmlRLnrQbEnOPIP3GPn-k",
+            authDomain: "uncsam-d938d.firebaseapp.com",
+            projectId: "uncsam-d938d",
+            storageBucket: "uncsam-d938d.firebasestorage.app",
+            messagingSenderId: "16799293764",
+            appId: "1:16799293764:web:835733dd944868908e7711",
+            measurementId: "G-QBH09TB8YK"
+        };
+
+        try {
+            const app = initializeApp(firebaseConfig);
+            window.db = getFirestore(app);
+            window.auth = getAuth(app);
+            window.fb = { signInAnonymously, doc, setDoc, deleteDoc, updateDoc, onSnapshot, serverTimestamp };
+            console.log("System Core: ONLINE");
+        } catch (e) {
+            console.error("System Core: FAILED", e);
+        }
+    </script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@100..800&display=swap');
+        :root { --p: #0f0; --b: #000; --d: #050505; --err: #ff3333; }
+        body { background: var(--d); color: var(--p); font-family: 'JetBrains Mono', monospace; overflow: hidden; touch-action: none; }
+        
+        /* Effects */
+        .scanline { width: 100%; height: 100px; z-index: 50; background: linear-gradient(0deg, transparent 0%, rgba(0, 255, 0, 0.04) 50%, transparent 100%); opacity: 0.1; position: absolute; bottom: 100%; animation: scanline 10s linear infinite; pointer-events: none; }
+        @keyframes scanline { 0% { bottom: 100%; } 100% { bottom: -100%; } }
+        .flicker { animation: flicker 0.15s infinite; }
+        @keyframes flicker { 0% { opacity: 0.97; } 100% { opacity: 1; } }
+        .glitch-anim { animation: glitch 0.2s cubic-bezier(.25, .46, .45, .94) both infinite; }
+        @keyframes glitch { 0% { transform: translate(0); } 20% { transform: translate(-2px, 2px); } 40% { transform: translate(-2px, -2px); } 60% { transform: translate(2px, 2px); } 80% { transform: translate(2px, -2px); } 100% { transform: translate(0); } }
+        ::-webkit-scrollbar { width: 4px; } ::-webkit-scrollbar-track { background: #001100; } ::-webkit-scrollbar-thumb { background: #0f0; }
+        .term-border { border: 1px solid #00ff41; box-shadow: 0 0 10px rgba(0, 255, 65, 0.2); background: rgba(0,0,0,0.95); }
+        .term-border-flash { border: 1px solid #eab308; box-shadow: 0 0 10px rgba(234, 179, 8, 0.2); background: rgba(0,0,0,0.95); }
+        .term-border-note { border: 1px solid #3b82f6; box-shadow: 0 0 10px rgba(59, 130, 246, 0.2); background: rgba(0,0,0,0.95); }
+        .voice-active { box-shadow: 0 0 15px #00ff41; border-color: #fff; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel" data-presets="env,react">
+        const { useState, useEffect, useRef } = React;
+
+        // --- ICONS ---
+        const Icon = ({ d, className }) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d={d}/></svg>;
+        
+        // --- CRYPTO ---
+        const Crypto = {
+            getKey: async (pass) => {
+                const enc = new TextEncoder();
+                const keyMat = await window.crypto.subtle.importKey("raw", enc.encode(pass), { name: "PBKDF2" }, false, ["deriveKey"]);
+                return window.crypto.subtle.deriveKey({ name: "PBKDF2", salt: enc.encode("NEXUS_SALT_V11"), iterations: 100000, hash: "SHA-256" }, keyMat, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
+            },
+            encrypt: async (data, key) => {
+                const enc = new TextEncoder();
+                const iv = window.crypto.getRandomValues(new Uint8Array(12));
+                const encrypted = await window.crypto.subtle.encrypt({ name: "AES-GCM", iv: iv }, key, enc.encode(JSON.stringify(data)));
+                const combined = new Uint8Array(iv.length + encrypted.byteLength);
+                combined.set(iv); combined.set(new Uint8Array(encrypted), iv.length);
+                return btoa(String.fromCharCode(...combined));
+            },
+            decrypt: async (base64, key) => {
+                try {
+                    const str = atob(base64);
+                    const combined = new Uint8Array(str.length);
+                    for (let i = 0; i < str.length; i++) combined[i] = str.charCodeAt(i);
+                    const iv = combined.slice(0, 12);
+                    const data = combined.slice(12);
+                    const decrypted = await window.crypto.subtle.decrypt({ name: "AES-GCM", iv: iv }, key, data);
+                    return JSON.parse(new TextDecoder().decode(decrypted));
+                } catch (e) { return null; }
+            },
+            hashId: async (p) => {
+                const msg = new TextEncoder().encode(p);
+                const hash = await crypto.subtle.digest('SHA-256', msg);
+                return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+            }
+        };
+
+        const App = () => {
+            const [view, setView] = useState('boot'); 
+            const [pass, setPass] = useState('');
+            const [status, setStatus] = useState('');
+            const [widgets, setWidgets] = useState([]);
+            const [key, setKey] = useState(null);
+            const [docId, setDocId] = useState(null);
+            const [isGlitching, setIsGlitching] = useState(false);
+            const [isStealth, setIsStealth] = useState(false);
+            const [userId, setUserId] = useState('UNK');
+            const [topZ, setTopZ] = useState(10); 
+
+            // Security: Stealth & Inactivity
+            const idleTimer = useRef(null);
+            useEffect(() => {
+                const handleKeyDown = (e) => { if (e.key === 'Escape') setIsStealth(prev => !prev); resetTimer(); };
+                const resetTimer = () => {
+                    if (view !== 'dashboard' || isStealth) return;
+                    clearTimeout(idleTimer.current);
+                    idleTimer.current = setTimeout(() => { setIsGlitching(true); setTimeout(() => window.location.reload(), 2000); }, 60000);
+                };
+                window.addEventListener('mousemove', resetTimer); window.addEventListener('keydown', handleKeyDown);
+                window.addEventListener('touchstart', resetTimer);
+                return () => { window.removeEventListener('mousemove', resetTimer); window.removeEventListener('keydown', handleKeyDown); window.removeEventListener('touchstart', resetTimer); };
+            }, [view, isStealth]);
+
+            useEffect(() => { setTimeout(() => setView('login'), 2000); }, []);
+
+            const handleLogin = async (e) => {
+                e.preventDefault();
+                if (pass === '1715') { setView('duress'); return; }
+                if (pass.length < 6) { setStatus('KEY TOO SHORT'); return; }
+                setStatus('AUTHENTICATING...');
+                
+                try {
+                    const u = await window.fb.signInAnonymously(window.auth);
+                    setUserId(u.user.uid.substring(0, 4).toUpperCase());
+                    
+                    const cryptoKey = await Crypto.getKey(pass);
+                    const id = await Crypto.hashId(pass);
+                    setKey(cryptoKey);
+                    setDocId(id);
+
+                    const docRef = window.fb.doc(window.db, 'nexus_secure_storage', id);
+                    window.fb.onSnapshot(docRef, async (snap) => {
+                        if (snap.exists()) {
+                            const raw = snap.data();
+                            if (raw.encryptedData) {
+                                const dec = await Crypto.decrypt(raw.encryptedData, cryptoKey);
+                                if (dec) setWidgets(dec);
+                            }
+                        } else { saveData([], cryptoKey, id); }
+                    }, (err) => setStatus('DB PERMISSION DENIED'));
+                    setStatus('UPLINK ESTABLISHED');
+                    setTimeout(() => setView('dashboard'), 800);
+                } catch (err) { setStatus('CONNECTION REFUSED'); }
+            };
+
+            const saveData = async (data, activeKey, activeId) => {
+                if (!activeKey || !activeId) return;
+                const enc = await Crypto.encrypt(data, activeKey);
+                try { await window.fb.setDoc(window.fb.doc(window.db, 'nexus_secure_storage', activeId), { encryptedData: enc, updated: window.fb.serverTimestamp() }); } catch(e) {}
+            };
+
+            const handleNuke = async () => {
+                if (!window.confirm("CONFIRM PROTOCOL: NUKE?")) return;
+                setIsGlitching(true);
+                try {
+                    const ref = window.fb.doc(window.db, 'nexus_secure_storage', docId);
+                    for(let i=0; i<3; i++) await window.fb.setDoc(ref, { encryptedData: "00000000000000000000000000000000" });
+                    await window.fb.deleteDoc(ref);
+                    setTimeout(() => window.location.reload(), 1000);
+                } catch (e) { window.location.reload(); }
+            };
+
+            const addWidget = (type) => {
+                const randX = Math.floor(Math.random() * (window.innerWidth - 350)) + 20;
+                const randY = Math.floor(Math.random() * (window.innerHeight - 300)) + 80;
+                const w = { id: Date.now().toString(), type, x: randX, y: randY, w: 320, h: 240, z: topZ + 1, d: (type === 'chat' || type === 'flash') ? [] : '' };
+                setTopZ(prev => prev + 1);
+                const updated = [...widgets, w];
+                setWidgets(updated);
+                saveData(updated, key, docId);
+            };
+
+            const updateWidget = (id, data) => {
+                const updated = widgets.map(w => w.id === id ? { ...w, ...data } : w);
+                setWidgets(updated);
+            };
+
+            const deleteWidget = (id) => {
+                const updated = widgets.filter(w => w.id !== id);
+                setWidgets(updated);
+                saveData(updated, key, docId);
+            };
+
+            const bringToFront = (id) => {
+                const newZ = topZ + 1;
+                setTopZ(newZ);
+                updateWidget(id, { z: newZ });
+            };
+
+            if (isGlitching) return <div className="h-screen w-full bg-black flex items-center justify-center overflow-hidden"><div className="text-red-600 font-bold text-6xl glitch-anim">SYSTEM FAILURE</div></div>;
+            if (isStealth) return <div className="h-screen w-full bg-white flex flex-col items-center justify-center text-gray-800 font-sans"><h1 className="text-4xl font-bold mb-2">404 Not Found</h1><p>The requested resource could not be found on this server.</p><div className="mt-8 border-t pt-4 text-sm text-gray-500">Apache/2.4.41 (Ubuntu) Server at 127.0.0.1 Port 80</div></div>;
+            if (view === 'duress') return <DuressDashboard />;
+            if (view === 'boot') return <div className="h-screen w-full flex items-center justify-center flex-col text-green-500"><div className="scanline"></div><div className="text-4xl font-bold tracking-widest mb-4">CIPHER_NEXUS</div><div className="text-xs">ESTABLISHING SECURE ENVIRONMENT...</div><div className="w-64 h-1 bg-green-900 mt-4 overflow-hidden"><div className="h-full bg-green-500 animate-[load_2s_ease-out_forwards]" style={{width: '0%'}}></div></div><style>{`@keyframes load { to { width: 100%; } }`}</style></div>;
+
+            if (view === 'login') return (
+                <div className="h-screen w-full flex items-center justify-center p-4 relative">
+                    <div className="scanline"></div>
+                    <div className="term-border p-8 bg-black/90 max-w-md w-full relative z-20">
+                        <div className="flex justify-center mb-4 text-green-500"><Icon d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" className="w-12 h-12" /></div>
+                        <h1 className="text-2xl font-bold text-center mb-2 tracking-[0.2em] glow-text">NEXUS V11</h1>
+                        <div className="text-[10px] text-center text-green-700 mb-8">AES-256-GCM ENCRYPTED GATEWAY</div>
+                        <form onSubmit={handleLogin} className="space-y-6">
+                            <div className="relative">
+                                <label className="text-[10px] text-green-600 absolute -top-3 left-2 bg-black px-1">ACCESS KEY</label>
+                                <input type="password" value={pass} onChange={e => setPass(e.target.value)} className="w-full bg-black border border-green-700 p-3 text-center text-green-400 focus:outline-none focus:border-green-400 focus:shadow-[0_0_15px_rgba(0,255,65,0.3)] transition-all font-mono tracking-widest" placeholder="••••••••••••" autoFocus />
+                            </div>
+                            <button className="w-full bg-green-900/20 border border-green-600 py-3 text-green-400 hover:bg-green-500 hover:text-black transition-all uppercase text-sm font-bold tracking-widest">INITIALIZE</button>
+                        </form>
+                        <div className="mt-4 text-center h-4 text-xs text-red-500 font-mono flicker">{status}</div>
+                    </div>
+                </div>
+            );
+
+            return (
+                <div className="h-screen w-full relative overflow-hidden crt" onMouseUp={() => saveData(widgets, key, docId)} onTouchEnd={() => saveData(widgets, key, docId)}>
+                    <div className="scanline"></div>
+                    <div className="absolute top-0 w-full h-12 bg-black/90 border-b border-green-900 flex items-center justify-between px-4 z-50">
+                        <div className="flex items-center gap-4">
+                            <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+                            <div className="text-xs text-green-600">SESSION: {docId?.substring(0,8)}... | ID: {userId}</div>
+                        </div>
+                        <div className="flex gap-4 items-center">
+                            <div className="text-xs text-green-800 hidden sm:block">ESC=STEALTH</div>
+                            <button onClick={handleNuke} className="text-xs font-bold text-red-600 hover:text-red-100 border border-red-900 bg-red-900/10 px-3 py-1 hover:bg-red-600 hover:border-red-600 transition-all">[ NUKE ]</button>
+                        </div>
+                    </div>
+                    <div className="absolute left-4 top-20 z-40 flex flex-col gap-2">
+                        <div className="bg-black/80 border border-green-900 p-2 space-y-2">
+                            <button onClick={() => addWidget('chat')} className="w-full text-left p-2 hover:bg-green-900/50 text-xs text-green-400 border border-transparent hover:border-green-700 transition-all">[+] CHAT (SECURE)</button>
+                            <button onClick={() => addWidget('flash')} className="w-full text-left p-2 hover:bg-green-900/50 text-xs text-yellow-400 border border-transparent hover:border-yellow-700 transition-all">[+] FLASH (AUTO-DEL)</button>
+                            <button onClick={() => addWidget('note')} className="w-full text-left p-2 hover:bg-green-900/50 text-xs text-blue-400 border border-transparent hover:border-blue-700 transition-all">[+] NOTE (PERM)</button>
+                            <button onClick={() => addWidget('comm')} className="w-full text-left p-2 hover:bg-green-900/50 text-xs text-green-400 border border-transparent hover:border-green-700 transition-all">[+] LIVE VOX</button>
+                            <button onClick={() => addWidget('cam')} className="w-full text-left p-2 hover:bg-green-900/50 text-xs text-red-400 border border-transparent hover:border-red-700 transition-all">[+] GHOST CAM</button>
+                        </div>
+                    </div>
+                    <div className="absolute inset-0 pt-12">
+                        {widgets.length === 0 && <div className="h-full flex items-center justify-center opacity-30 select-none pointer-events-none"><div className="text-center"><h2 className="text-4xl font-bold tracking-widest mb-2">SECURE VOID</h2><p className="text-sm">AWAITING INPUT</p></div></div>}
+                        {widgets.map(w => <Widget key={w.id} data={w} userId={userId} update={updateWidget} onDelete={deleteWidget} onInteract={() => bringToFront(w.id)} onSave={() => saveData(widgets, key, docId)} />)}
+                    </div>
+                </div>
+            );
+        };
+
+        const Widget = ({ data, userId, update, onDelete, onSave, onInteract }) => {
+            const [isDragging, setIsDragging] = useState(false);
+            const pos = useRef({ x: data.x, y: data.y });
+            const offset = useRef({ x: 0, y: 0 });
+            const [renderPos, setRenderPos] = useState({ x: data.x, y: data.y });
+            const [input, setInput] = useState('');
+            
+            // Cam & Comm Refs
+            const vid = useRef(null);
+            const canvasRef = useRef(null);
+            const [isStreaming, setIsStreaming] = useState(false);
+            const [isTalk, setIsTalk] = useState(false);
+            const lastPlayed = useRef({});
+
+            useEffect(() => { 
+                if(!isDragging) { pos.current = { x: data.x, y: data.y }; setRenderPos({ x: data.x, y: data.y }); }
+            }, [data.x, data.y]);
+
+            const startDrag = (clientX, clientY) => {
+                onInteract();
+                setIsDragging(true);
+                offset.current = { x: clientX - pos.current.x, y: clientY - pos.current.y };
+            };
+
+            const onMouseDown = (e) => { if(['TEXTAREA','BUTTON','INPUT','VIDEO'].includes(e.target.tagName)) return; startDrag(e.clientX, e.clientY); };
+            const onTouchStart = (e) => { if(['TEXTAREA','BUTTON','INPUT','VIDEO'].includes(e.target.tagName)) return; startDrag(e.touches[0].clientX, e.touches[0].clientY); };
+
+            useEffect(() => {
+                const move = (clientX, clientY) => { if(!isDragging) return; pos.current = { x: clientX - offset.current.x, y: clientY - offset.current.y }; setRenderPos({ ...pos.current }); };
+                const end = () => { if(isDragging) { setIsDragging(false); update(data.id, { x: pos.current.x, y: pos.current.y }); onSave(); } };
+                const hMove = (e) => move(e.clientX, e.clientY);
+                const hTouch = (e) => move(e.touches[0].clientX, e.touches[0].clientY);
+                if(isDragging) { window.addEventListener('mousemove', hMove); window.addEventListener('mouseup', end); window.addEventListener('touchmove', hTouch); window.addEventListener('touchend', end); }
+                return () => { window.removeEventListener('mousemove', hMove); window.removeEventListener('mouseup', end); window.removeEventListener('touchmove', hTouch); window.removeEventListener('touchend', end); };
+            }, [isDragging]);
+
+            // --- CAM LOGIC ---
+            useEffect(() => {
+                let interval;
+                if (isStreaming && videoRef.current && canvasRef.current) {
+                    interval = setInterval(() => {
+                        const ctx = canvasRef.current.getContext('2d');
+                        ctx.drawImage(videoRef.current, 0, 0, 160, 120);
+                        const frame = canvasRef.current.toDataURL('image/jpeg', 0.4);
+                        update(data.id, { d: frame });
+                        if(Math.random() > 0.5) onSave();
+                    }, 500);
+                }
+                return () => clearInterval(interval);
+            }, [isStreaming]);
+
+            const toggleCam = async () => {
+                if(isStreaming) {
+                    const tracks = videoRef.current.srcObject.getTracks();
+                    tracks.forEach(t => t.stop());
+                    setIsStreaming(false);
+                    update(data.id, { d: null }); onSave();
+                } else {
+                    try {
+                        const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 160, height: 120 } });
+                        videoRef.current.srcObject = stream;
+                        setIsStreaming(true);
+                    } catch(e) { alert("CAM DENIED"); }
+                }
+            };
+
+            // --- LIVE VOX ---
+            const toggleTalk = async () => {
+                if (isTalk) { setIsTalk(false); return; }
+                try {
+                    const s = await navigator.mediaDevices.getUserMedia({audio:true});
+                    setIsTalk(true);
+                    const recorder = new MediaRecorder(s);
+                    recorder.ondataavailable = async (e) => {
+                        const reader = new FileReader();
+                        reader.readAsDataURL(e.data);
+                        reader.onloadend = () => {
+                            const packet = { blob: reader.result, ts: Date.now() };
+                            // Use Object.assign to merge not overwrite
+                            const currentD = typeof data.d === 'object' ? data.d : {};
+                            update(data.id, { d: { ...currentD, [userId]: packet } }); 
+                            onSave();
+                        };
+                    };
+                    recorder.start(2000); 
+                } catch { alert('MIC BLOCKED'); setIsTalk(false); }
+            };
+
+            useEffect(() => {
+                if (data.type !== 'comm' || !data.d) return;
+                Object.keys(data.d).forEach(uId => {
+                    if (uId === userId) return; 
+                    const packet = data.d[uId];
+                    if (packet && packet.ts > (lastPlayed.current[uId] || 0)) {
+                        lastPlayed.current[uId] = packet.ts;
+                        const audio = new Audio(packet.blob);
+                        audio.play().catch(e => {});
+                    }
+                });
+            }, [data.d]);
+
+            // --- CHAT LOGIC ---
+            const handleChatSubmit = (e) => {
+                e.preventDefault(); if(!input.trim()) return;
+                const newMsg = { id: Date.now(), user: userId, text: input, time: new Date().toLocaleTimeString() };
+                let newContent = [...(data.d || []), newMsg];
+                
+                // FLASH LOGIC: Only keep last 5
+                if (data.type === 'flash') {
+                    if (newContent.length > 5) newContent = newContent.slice(-5);
+                }
+
+                update(data.id, { d: newContent }); onSave(); setInput('');
+            };
+
+            const renderBody = () => {
+                if(data.type === 'cam') return (
+                    <div className="flex flex-col h-full bg-black">
+                        {isStreaming ? <><video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover opacity-50" /><canvas ref={canvasRef} width="160" height="120" className="hidden" /></> : (data.d ? <img src={data.d} className="w-full h-full object-cover opacity-80" /> : <div className="flex-1 flex items-center justify-center text-xs text-red-500">NO SIGNAL</div>)}
+                        <button onClick={toggleCam} className="bg-red-900/50 text-red-300 text-xs py-1 hover:bg-red-900">{isStreaming ? "STOP UPLINK" : "START CAM"}</button>
+                    </div>
+                );
+                if(data.type === 'comm') return (
+                    <div className="h-full flex items-center justify-center p-4 flex-col">
+                        <div className="flex space-x-1 h-8 items-end mb-4">
+                            {[1,2,3,4,5].map(i => <div key={i} className={`w-1 bg-green-500 ${data.d && Object.keys(data.d).length > 0 ? 'animate-pulse' : ''}`} style={{height: `${Math.random()*100}%`}}></div>)}
+                        </div>
+                        <div className="text-[10px] text-green-600 mb-2">ACTIVE CHANNELS: {data.d ? Object.keys(data.d).length : 0}</div>
+                        <button onClick={toggleTalk} className={`border px-4 py-2 rounded-full text-xs ${isTalk ? 'border-red-500 text-red-500 animate-pulse' : 'border-green-500 text-green-500 hover:bg-green-900/20'}`}>{isTalk ? 'TRANSMITTING...' : 'ENABLE FEED'}</button>
+                    </div>
+                );
+                if(data.type === 'note') return <textarea className="flex-1 bg-transparent text-blue-400 p-2 text-sm font-mono focus:outline-none resize-none placeholder-blue-900/50" value={data.d} onChange={e => update(data.id, { d: e.target.value })} onBlur={onSave} spellCheck="false" placeholder="> PERSISTENT DATA LOG..." />;
+                
+                // Chat & Flash use same UI, different logic
+                if(data.type === 'chat' || data.type === 'flash') return (
+                    <div className="flex flex-col h-full">
+                        <div className="flex-1 overflow-y-auto p-2 space-y-1 bg-black/50">
+                            {(data.d || []).map(m => (
+                                <div key={m.id} className="text-xs break-words border-l-2 border-green-900 pl-2 mb-1">
+                                    <span className="text-[10px] text-green-700">{m.time}</span> <span className="font-bold text-green-500">&lt;{m.user}&gt;</span> <span className={`text-${data.type==='flash'?'yellow':'green'}-300`}>{m.text}</span>
+                                </div>
+                            ))}
+                        </div>
+                        <form onSubmit={handleChatSubmit} className="border-t border-green-800 flex"><input className={`flex-1 bg-black text-${data.type==='flash'?'yellow':'green'}-400 p-2 text-xs focus:outline-none`} value={input} onChange={e=>setInput(e.target.value)} placeholder="TRANSMIT..." /><button className="px-3 bg-green-900/20 text-green-500 hover:bg-green-800 text-xs">SEND</button></form>
+                    </div>
+                );
+            };
+
+            let borderColor = 'border-green-500';
+            let headerColor = 'bg-green-900/20 border-green-800';
+            
+            if(data.type === 'flash') { borderColor = 'border-yellow-600'; headerColor = 'bg-yellow-900/20 border-yellow-800'; }
+            else if(data.type === 'note') { borderColor = 'border-blue-600'; headerColor = 'bg-blue-900/20 border-blue-800'; }
+            else if(data.type === 'cam') { borderColor = 'border-red-600'; headerColor = 'bg-red-900/20 border-red-800'; }
+
+            return (
+                <div 
+                    className={`absolute term-border flex flex-col ${borderColor} ${headerColor.replace('bg-', 'bg-black/95 ')} ${isTalk ? 'voice-active' : ''}`} 
+                    style={{ left: renderPos.x, top: renderPos.y, width: 300, height: 240, zIndex: data.z || 10 }} 
+                    onMouseDown={onMouseDown}
+                    onTouchStart={onTouchStart}
+                >
+                    <div className={`${headerColor} border-b p-1 px-2 flex justify-between items-center cursor-move select-none`}>
+                        <span className="text-[10px] font-bold tracking-wider uppercase">{data.type}_{data.id.slice(-4)}</span>
+                        <button onClick={() => onDelete(data.id)} className="text-inherit hover:text-red-500 font-bold px-1" onMouseDown={e => e.stopPropagation()} onTouchStart={e => e.stopPropagation()}>×</button>
+                    </div>
+                    {renderBody()}
+                </div>
+            );
+        };
+
+        const DuressDashboard = () => (
+            <div className="h-screen w-full bg-gray-100 text-gray-800 font-sans p-8 overflow-y-auto">
+                <div className="max-w-4xl mx-auto">
+                    <div className="flex justify-between items-center mb-8 border-b pb-4"><h1 className="text-2xl font-bold text-blue-600">Server Diagnostic Tool v4.1</h1><div className="text-sm text-gray-500">Status: <span className="text-green-600">Healthy</span></div></div>
+                    <div className="grid grid-cols-2 gap-6 mb-8">
+                        <div className="bg-white p-6 rounded shadow border"><h3 className="font-bold mb-4 text-gray-700">CPU Load</h3><div className="flex items-end space-x-2 h-32">{[40,65,32,50,78,45,30,60,55,40].map((h,i)=><div key={i} className="flex-1 bg-blue-400 rounded-t" style={{height:`${h}%`}}></div>)}</div></div>
+                        <div className="bg-white p-6 rounded shadow border"><h3 className="font-bold mb-4 text-gray-700">Memory</h3><div className="text-4xl font-bold text-gray-800 mb-2">4.2 GB</div><div className="w-full bg-gray-200 rounded-full h-2.5"><div className="bg-blue-600 h-2.5 rounded-full" style={{width:'45%'}}></div></div></div>
+                    </div>
+                    <div className="bg-white p-6 rounded shadow border"><h3 className="font-bold mb-4 text-gray-700">System Logs</h3><div className="font-mono text-xs text-gray-600 space-y-1"><div>[14:20:01] Service 'apache2' restarted.</div><div>[14:18:55] Cron job completed.</div><div>[14:15:22] User 'admin' logged in.</div></div></div>
+                </div>
+            </div>
+        );
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
+
+
