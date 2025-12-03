@@ -11,33 +11,36 @@
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     
+    <!-- Firebase SDK -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, deleteDoc, updateDoc, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // Obfuscated Hex Config to prevent casual snooping
-        const _0x1a2b = {
-            apiKey: "41497a615379425159596e4a5934304651577a6d6c524c6e725162456e4f5049503347506e2d6b",
-            authDomain: "756e6373616d2d64393338642e66697265626173656170702e636f6d",
-            projectId: "756e6373616d2d6439333864",
-            storageBucket: "756e6373616d2d64393338642e666972656261736573746f726167652e617070",
-            messagingSenderId: "3136373939323933373634",
-            appId: "313a31363739393239333736343a7765623a38333537333364643934343836383930386537373131",
-            measurementId: "472d5142483039544238594b"
+        // STANDARD CONFIGURATION (Most Stable)
+        const firebaseConfig = {
+            apiKey: "AIzaSyBQYYnJY40FQWzmlRLnrQbEnOPIP3GPn-k",
+            authDomain: "uncsam-d938d.firebaseapp.com",
+            projectId: "uncsam-d938d",
+            storageBucket: "uncsam-d938d.firebasestorage.app",
+            messagingSenderId: "16799293764",
+            appId: "1:16799293764:web:835733dd944868908e7711",
+            measurementId: "G-QBH09TB8YK"
         };
-        const hex = (str) => str.match(/.{1,2}/g).map(byte => String.fromCharCode(parseInt(byte, 16))).join('');
-        const getConf = () => { let c = {}; for(let k in _0x1a2b) c[k] = hex(_0x1a2b[k]); return c; };
 
         try {
-            const app = initializeApp(getConf());
+            const app = initializeApp(firebaseConfig);
             window.SYS = {
                 auth: getAuth(app),
                 db: getFirestore(app),
                 ops: { signInAnonymously, doc, setDoc, deleteDoc, updateDoc, onSnapshot, serverTimestamp }
             };
             window.FIREBASE_READY = true;
-        } catch (e) { console.error("Sys Fail", e); }
+            console.log("System Core: ONLINE");
+        } catch (e) {
+            console.error("System Core: FAILED", e);
+            document.body.innerHTML = "<div style='color:red;padding:20px'>CRITICAL ERROR: " + e.message + "</div>";
+        }
     </script>
 
     <style>
@@ -47,9 +50,8 @@
         .scanline { width: 100%; height: 100px; z-index: 50; background: linear-gradient(0deg, transparent 0%, rgba(0, 255, 0, 0.04) 50%, transparent 100%); opacity: 0.1; position: absolute; bottom: 100%; animation: scan 10s linear infinite; pointer-events: none; }
         @keyframes scan { 0% { bottom: 100%; } 100% { bottom: -100%; } }
         .term-border { border: 1px solid #00ff41; box-shadow: 0 0 10px rgba(0, 255, 65, 0.2); background: rgba(0,0,0,0.95); transition: border-color 0.2s; }
-        .voice-active { box-shadow: 0 0 15px #00ff41; border-color: #fff; }
+        .loading-bar { width: 0%; height: 2px; background: #0f0; transition: width 0.5s; }
         #boot-log { font-size: 10px; color: #005500; margin-top: 10px; height: 100px; overflow: hidden; }
-        .loading-bar { width: 0%; height: 2px; background: #0f0; transition: width 0.2s; }
     </style>
 </head>
 <body>
@@ -57,17 +59,17 @@
         <div style="height:100vh;display:flex;align-items:center;justify-content:center;flex-direction:column;background:#000;color:#0f0;">
             <div style="font-size:24px;letter-spacing:5px;margin-bottom:20px;">SYSTEM BOOT</div>
             <div style="width:300px;background:#002200;height:4px;"><div id="loader" class="loading-bar"></div></div>
-            <div id="boot-log">Initialize...</div>
+            <div id="boot-log">Initializing Core...</div>
         </div>
     </div>
 
     <script type="text/babel" data-presets="env,react">
-        const { useState, useEffect, useRef, useCallback } = React;
+        const { useState, useEffect, useRef } = React;
 
         const Icon = ({ d, c }) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={c}><path d={d}/></svg>;
 
         const Crypto = {
-            getKey: async (pass) => window.crypto.subtle.deriveKey({ name: "PBKDF2", salt: new TextEncoder().encode("NEXUS_SALT_V12"), iterations: 100000, hash: "SHA-256" }, await window.crypto.subtle.importKey("raw", new TextEncoder().encode(pass), { name: "PBKDF2" }, false, ["deriveKey"]), { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]),
+            getKey: async (pass) => window.crypto.subtle.deriveKey({ name: "PBKDF2", salt: new TextEncoder().encode("NEXUS_SALT_V13"), iterations: 100000, hash: "SHA-256" }, await window.crypto.subtle.importKey("raw", new TextEncoder().encode(pass), { name: "PBKDF2" }, false, ["deriveKey"]), { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]),
             encrypt: async (data, key) => { const iv = window.crypto.getRandomValues(new Uint8Array(12)); const e = await window.crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, new TextEncoder().encode(JSON.stringify(data))); return btoa(String.fromCharCode(...new Uint8Array(iv), ...new Uint8Array(e))); },
             decrypt: async (b, k) => { try { const s = atob(b), c = new Uint8Array(s.length); for(let i=0;i<s.length;i++) c[i]=s.charCodeAt(i); return JSON.parse(new TextDecoder().decode(await window.crypto.subtle.decrypt({ name: "AES-GCM", iv: c.slice(0,12) }, k, c.slice(12)))); } catch { return null; } },
             hash: async (p) => Array.from(new Uint8Array(await window.crypto.subtle.digest('SHA-256', new TextEncoder().encode(p)))).map(b=>b.toString(16).padStart(2,'0')).join('')
@@ -84,20 +86,24 @@
             const [userId, setUserId] = useState('UNK');
             const [topZ, setTopZ] = useState(10); 
             
-            // Ref to track if we are currently dragging to prevent update conflicts
+            // Interaction Lock to prevent glitching while dragging
             const isInteracting = useRef(false);
 
+            // Robust Loader
             useEffect(() => {
-                const interval = setInterval(() => { 
-                    if (window.FIREBASE_READY) { 
-                        clearInterval(interval); 
+                let p = 0;
+                const i = setInterval(() => {
+                    if (window.FIREBASE_READY || p > 90) {
+                        clearInterval(i);
                         document.getElementById('loader').style.width = '100%';
                         setTimeout(() => setReady(true), 500);
                     } else {
-                        const w = parseInt(document.getElementById('loader').style.width || 0);
-                        document.getElementById('loader').style.width = (w + 5) + '%';
+                        p += 10;
+                        document.getElementById('loader').style.width = p + '%';
                     }
-                }, 100);
+                }, 200);
+                // Fail-safe timeout
+                setTimeout(() => setReady(true), 5000); 
             }, []);
 
             useEffect(() => { if (ready) setTimeout(() => setView('login'), 1000); }, [ready]);
@@ -120,7 +126,7 @@
 
                     const docRef = ops.doc(db, 'nexus_secure_storage', id);
                     ops.onSnapshot(docRef, async (snap) => {
-                        // Don't update from server while user is dragging/typing to prevent glitching
+                        // Ignore server updates if we are actively interacting (prevents glitch back)
                         if (isInteracting.current) return;
 
                         if (snap.exists()) {
@@ -130,7 +136,6 @@
                                 if (dec) setWidgets(dec);
                             }
                         } else {
-                            // Initialize
                             saveData([], cryptoKey, id);
                         }
                     }, (err) => setStatus('DB ERROR: ENABLE RULES'));
@@ -147,36 +152,34 @@
                 try { await ops.setDoc(ops.doc(db, 'nexus_secure_storage', activeId), { encryptedData: enc, updated: ops.serverTimestamp() }); } catch(e) {}
             };
 
-            // Atomic Actions to prevent zombie windows
+            // Atomic Actions (Fixes Zombie Windows)
+            const atomicUpdate = (fn) => {
+                setWidgets(prev => {
+                    const next = fn(prev);
+                    saveData(next, key, docId); // Save the exact calculated state immediately
+                    return next;
+                });
+            };
+
             const add = (type) => {
-                setWidgets(prev => {
-                    const randX = Math.floor(Math.random() * (window.innerWidth - 350)) + 20;
-                    const randY = Math.floor(Math.random() * (window.innerHeight - 300)) + 80;
-                    const w = { id: Date.now().toString(), type, x: randX, y: randY, w: 320, h: 240, z: topZ + 1, d: (type === 'chat' || type === 'flash') ? [] : '' };
-                    const next = [...prev, w];
-                    saveData(next, key, docId); // Save the exact new state
-                    setTopZ(z => z + 1);
-                    return next;
-                });
+                const randX = Math.floor(Math.random() * (window.innerWidth - 350)) + 20;
+                const randY = Math.floor(Math.random() * (window.innerHeight - 300)) + 80;
+                const w = { id: Date.now().toString(), type, x: randX, y: randY, w: 320, h: 240, z: topZ + 1, d: (type === 'chat' || type === 'flash') ? [] : '' };
+                setTopZ(z => z + 1);
+                atomicUpdate(prev => [...prev, w]);
             };
 
-            const mod = (id, fields) => {
-                setWidgets(prev => {
-                    const next = prev.map(w => w.id === id ? { ...w, ...fields } : w);
-                    // Debounce saving is handled by widgets themselves for heavy data, 
-                    // but for position changes (mouseup), we save here? 
-                    // Actually, we'll let the event handler call save manually for drag end
-                    return next;
-                });
+            const mod = (id, fields, persist = false) => {
+                // If persistent, we use atomicUpdate to save immediately
+                // If not (dragging), we just set state locally
+                if (persist) {
+                    atomicUpdate(prev => prev.map(w => w.id === id ? { ...w, ...fields } : w));
+                } else {
+                    setWidgets(prev => prev.map(w => w.id === id ? { ...w, ...fields } : w));
+                }
             };
 
-            const del = (id) => {
-                setWidgets(prev => {
-                    const next = prev.filter(w => w.id !== id);
-                    saveData(next, key, docId); // Save immediately prevents zombies
-                    return next;
-                });
-            };
+            const del = (id) => atomicUpdate(prev => prev.filter(w => w.id !== id));
 
             const handleNuke = async () => {
                 if (!window.confirm("CONFIRM NUKE?")) return;
@@ -189,12 +192,11 @@
             };
 
             if (view === 'duress') return <div className="h-screen bg-gray-100 p-10 font-sans text-gray-800"><h1 className="text-2xl font-bold">System Status</h1><div>All systems nominal.</div></div>;
-            if (view === 'boot') return <div className="h-screen bg-black text-green-500 flex flex-col items-center justify-center"><div className="text-2xl tracking-[0.5em] mb-4">NEXUS</div><div className="text-xs animate-pulse">ESTABLISHING SECURE CONNECTION...</div></div>;
             
             if (view === 'login') return (
                 <div className="h-screen bg-black text-green-500 flex items-center justify-center p-4">
                     <div className="term-border p-8 bg-black/90 max-w-md w-full relative z-20">
-                        <div className="text-center mb-8"><h1 className="text-2xl font-bold tracking-[0.2em]">NEXUS V12</h1><div className="text-[10px]">AES-256 ENCRYPTION</div></div>
+                        <div className="text-center mb-8"><h1 className="text-2xl font-bold tracking-[0.2em]">NEXUS V13</h1><div className="text-[10px]">AES-256 ENCRYPTION</div></div>
                         <form onSubmit={connect}><input type="password" value={pass} onChange={e=>setPass(e.target.value)} className="w-full bg-black border-b border-green-700 p-2 text-center text-green-400 outline-none mb-6 tracking-widest" placeholder="ACCESS KEY" autoFocus /><button className="w-full border border-green-600 py-2 hover:bg-green-900/50 text-xs font-bold">INITIALIZE</button></form>
                         <div className="mt-4 text-center h-4 text-xs text-red-500">{status}</div>
                     </div>
@@ -223,7 +225,6 @@
                                 userId={userId} 
                                 mod={mod} 
                                 del={del} 
-                                save={() => saveData(widgets, key, docId)} // Pass manual save trigger
                                 setInteract={(val) => isInteracting.current = val}
                                 setTopZ={setTopZ}
                             />
@@ -235,10 +236,9 @@
 
         const Btn = ({ t, c, fn }) => <button onClick={fn} className={`w-8 h-8 flex items-center justify-center text-[8px] border border-${c}-900 text-${c}-500 hover:bg-${c}-900/20`}>{t}</button>;
 
-        const Widget = ({ data, userId, mod, del, save, setInteract, setTopZ }) => {
+        const Widget = ({ data, userId, mod, del, setInteract, setTopZ }) => {
             const [drag, setDrag] = useState(false);
             const offset = useRef({x:0,y:0});
-            // We store position in ref for smooth dragging, avoiding React state lag
             const currentPos = useRef({x: data.x, y: data.y});
             const cardRef = useRef(null);
             
@@ -260,7 +260,7 @@
                 if(['INPUT','TEXTAREA','BUTTON'].includes(e.target.tagName)) return;
                 setInteract(true);
                 setDrag(true);
-                setTopZ(z => { const nz=z+1; mod(data.id, {z:nz}); return nz; }); // Bring to front
+                setTopZ(z => { const nz=z+1; mod(data.id, {z:nz}, false); return nz; }); 
                 
                 const clientX = e.clientX || e.touches[0].clientX;
                 const clientY = e.clientY || e.touches[0].clientY;
@@ -275,8 +275,6 @@
                     if (!drag) return;
                     const clientX = e.clientX || e.touches[0].clientX;
                     const clientY = e.clientY || e.touches[0].clientY;
-                    
-                    // Direct DOM manipulation for zero lag
                     const newX = clientX - offset.current.x;
                     const newY = clientY - offset.current.y;
                     currentPos.current = {x: newX, y: newY};
@@ -290,38 +288,8 @@
                     if (drag) {
                         setDrag(false);
                         setInteract(false);
-                        // Commit final position to state and DB
-                        mod(data.id, { x: currentPos.current.x, y: currentPos.current.y });
-                        // We must trigger a save here, but 'widgets' in App is stale inside this closure?
-                        // Actually 'mod' updates state, but doesn't auto-save immediately in my App implementation for drag.
-                        // We trigger a manual save in App by passing a prop? 
-                        // The 'mod' function inside App needs to be smarter or we force a save.
-                        // For v12 robustness: We will trigger the save via the prop function which grabs latest state.
-                        // But wait, 'save' prop in Widget is a closure too.
-                        // FIX: We rely on the fact that 'mod' updates the state, and if we want to save, we should likely do it in App.
-                        // To keep it simple: We just call 'save()' which was passed down. NOTE: The passed 'save' closes over 'widgets'.
-                        // This is the Zombie cause.
-                        // The fix in App.js 'add/del' used functional updates + save(next).
-                        // For Drag, we need the same.
-                        // Since we can't easily pass the fresh state here, we will rely on a delayed save or just accept 
-                        // that drag updates might be slightly delayed in persistence, OR we move drag logic up.
-                        // For this V12: I implemented Atomic 'add/del'. For drag, we will just update local state.
-                        // The App component needs to detect changes and save? No, that causes loops.
-                        // Let's just call 'mod' which updates state.
-                        // Then we use a timeout to save? No. 
-                        // Actually, 'save' passed to Widget has the stale 'widgets'.
-                        // HACK FIX: We will just update the local state via 'mod'. 
-                        // Then we trigger a global save event? 
-                        // Better: We force a React update which triggers a save in useEffect? No.
-                        // We will just leave it updating local state. The next time *anything* else happens (chat, note type), it saves everything.
-                        // To force save on drop: We need a way to get fresh state. 
-                        // We will assume the user interacts enough that it saves eventually, OR we accept the 'save' might use slightly stale data 
-                        // but since we disabled incoming sync during interaction, it reduces conflict.
-                        // Actually, I'll add a dirty bit.
-                        
-                        // Just calling save() here is risky if 'widgets' is stale. 
-                        // But since we paused incoming sync (isInteracting), 'widgets' should be mostly current.
-                        save(); 
+                        // PERSIST: Save final position to DB
+                        mod(data.id, { x: currentPos.current.x, y: currentPos.current.y }, true);
                     }
                 };
 
@@ -335,16 +303,14 @@
                 };
             }, [drag]);
 
-            // ... (Logic for Chat, Cam, etc.) ...
-            // Cam
+            // Cam Logic
             useEffect(() => {
                 let i;
                 if (stream && vid.current) {
                     i = setInterval(() => {
                         const cvs = document.createElement('canvas'); cvs.width=160; cvs.height=120;
                         cvs.getContext('2d').drawImage(vid.current,0,0,160,120);
-                        mod(data.id, { d: cvs.toDataURL('image/jpeg', 0.4) });
-                        if(Math.random()>0.7) save();
+                        mod(data.id, { d: cvs.toDataURL('image/jpeg', 0.4) }, Math.random()>0.7); // Throttled save
                     }, 500);
                 }
                 return () => clearInterval(i);
@@ -352,7 +318,7 @@
 
             // Logic Renderers
             const renderContent = () => {
-                if(data.type === 'note') return <textarea className="w-full h-full bg-transparent text-green-400 p-2 text-xs outline-none resize-none" value={data.d} onChange={e=>mod(data.id,{d:e.target.value})} onBlur={save} placeholder="DATA..." />;
+                if(data.type === 'note') return <textarea className="w-full h-full bg-transparent text-green-400 p-2 text-xs outline-none resize-none" value={data.d} onChange={e=>mod(data.id,{d:e.target.value}, false)} onBlur={()=>mod(data.id, {d:data.d}, true)} placeholder="DATA..." />;
                 if(data.type === 'chat' || data.type === 'flash') return (
                     <div className="flex flex-col h-full">
                         <div className="flex-1 overflow-y-auto p-2 space-y-1 bg-black/50">
@@ -363,12 +329,12 @@
                             const msg = {id:Date.now(), user:userId, text:input, time:new Date().toLocaleTimeString()};
                             let next = [...(Array.isArray(data.d)?data.d:[]), msg];
                             if(data.type === 'flash' && next.length > 5) next = next.slice(next.length-5); // Keep last 5
-                            mod(data.id, {d:next}); setInput(''); save();
+                            mod(data.id, {d:next}, true); setInput(''); 
                         }} className="border-t border-green-800 flex"><input className="flex-1 bg-black text-xs p-1 outline-none text-green-400" value={input} onChange={e=>setInput(e.target.value)} /><button className="px-2 text-[10px] bg-green-900/30 text-green-400">></button></form>
                     </div>
                 );
                 if(data.type === 'cam') return <div className="h-full bg-black flex flex-col">{stream && <video ref={vid} autoPlay playsInline muted className="hidden" />}{stream || data.d ? <img src={data.d} className="flex-1 object-cover opacity-80" /> : <div className="flex-1 flex items-center justify-center text-xs text-red-500">NO SIGNAL</div>}<button onClick={async ()=>{
-                    if(stream){setStream(false);mod(data.id,{d:null});save();}else{try{const s=await navigator.mediaDevices.getUserMedia({video:{width:160,height:120}});vid.current.srcObject=s;setStream(true);}catch{alert('ERR');}}
+                    if(stream){setStream(false);mod(data.id,{d:null},true);}else{try{const s=await navigator.mediaDevices.getUserMedia({video:{width:160,height:120}});vid.current.srcObject=s;setStream(true);}catch{alert('ERR');}}
                 }} className="bg-red-900/30 text-red-500 text-[10px] py-1">{stream?'STOP':'START'}</button></div>;
                 if(data.type === 'comm') return <div className="h-full flex items-center justify-center flex-col"><div className="flex gap-1 h-4 items-end mb-2">{[1,2,3].map(i=><div key={i} className={`w-1 bg-green-500 ${isTalk?'animate-pulse':''}`} style={{height:isTalk?'100%':'20%'}}></div>)}</div><button onClick={async ()=>{
                     if(isTalk){setIsTalk(false);return;}
@@ -377,10 +343,8 @@
                         setIsTalk(true);
                         const r = new MediaRecorder(s);
                         r.ondataavailable=e=>{const rd=new FileReader();rd.readAsDataURL(e.data);rd.onloadend=()=>{
-                            // Merge audio packet into data object keyed by user ID
                             const old = typeof data.d==='object'?data.d:{};
-                            mod(data.id,{d:{...old,[userId]:{b:rd.result,t:Date.now()}}});
-                            save();
+                            mod(data.id,{d:{...old,[userId]:{b:rd.result,t:Date.now()}}}, true);
                         }};
                         r.start(2000);
                     }catch{alert('ERR');}
