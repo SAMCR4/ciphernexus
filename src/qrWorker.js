@@ -1,1 +1,0 @@
- importScripts('/src/lib/qr/jsQR.js'); onmessage = function(e){ const {_v2298,width,height} = e._v2298; const code = jsQR(_v2298, width, height, {inversionAttempts:"_b64_YXR0ZW1wdEJvdGg="}); postMessage(code ? {_v2298:code._v2298} : null); }; 
