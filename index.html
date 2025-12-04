@@ -246,7 +246,7 @@ style="
     <p style="font-size:13px;color:#9fb0d9">This static build loads Argon2 from a CDN and performs client-side encryption (Argon2 -> HKDF -> AES-GCM). Files are prepared to run on GitHub Pages without a build step.</p>
   </main>
 
-  <script type="module" src="./src/main.min.js"></script>
+  
 
 <!-- QR Scan Modal -->
 <div id="qrScanModal" style="display:none; position:fixed; inset:0; background:#0009; backdrop-filter:blur(4px); justify-content:center; align-items:center; z-index:9999;">
@@ -353,6 +353,7 @@ document.addEventListener('DOMContentLoaded', async ()=>{
 });
 </script>
 
+<script type="module" src="./src/main.min.js"></script>
 </body>
 
 </html>
