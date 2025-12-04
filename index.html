@@ -1,0 +1,358 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CipherNexus — Static</title>
+  <link rel="icon" href="./public/favicon.ico" />
+  <style>
+    body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; margin:0; padding:16px; background:#0f172a; color:#e6eef8; }
+    main { max-width:900px; margin:24px auto; }
+    .card { background:#071024; padding:16px; border-radius:8px; box-shadow: 0 6px 18px rgba(2,6,23,0.6); }
+    input, button, textarea { font:inherit; padding:8px; border-radius:6px; border:1px solid rgba(255,255,255,0.06); background:transparent; color:inherit; }
+    .row { display:flex; gap:8px; margin-top:8px; }
+    label { font-size:13px; color:#9fb0d9 }
+    pre { background:#021022; padding:12px; border-radius:6px; overflow:auto; }
+  </style>
+
+<style>
+/* Progress bar and better loader */
+#cn-progress{width:360px;height:8px;background:rgba(255,255,255,0.06);border-radius:8px;margin-top:12px;overflow:hidden}
+#cn-progress > i{display:block;height:100%;width:0%;background:linear-gradient(90deg,#6af,#3cf);border-radius:8px;transition:width 400ms ease}
+.cn-loading-title{font-size:18px;margin-bottom:8px;font-weight:700;color:linear-gradient(90deg,#7af,#4df)}
+</style>
+<script>
+// small loader progress simulator
+(function(){ let p=0; function tick(){ p = Math.min(100, p + Math.random()*18); const bar = document.querySelector('#cn-progress > i'); if(bar) bar.style.width = p+'%'; if(p<100) setTimeout(tick, 400); } document.addEventListener('DOMContentLoaded', ()=>{ setTimeout(tick,300); }); })();
+</script>
+
+</head>
+<body>
+
+<!-- Top navbar -->
+<header id='cn-topbar' class='cn-fade-in' style='position:fixed;top:0;left:0;right:0;height:56px;display:flex;align-items:center;gap:12px;padding:8px 16px;z-index:9997;background:linear-gradient(90deg, rgba(0,0,0,0.25), rgba(0,0,0,0.15));backdrop-filter:blur(6px)'>
+  <div style='font-weight:700;font-size:1.05rem'>CipherNexus</div>
+  <div style='flex:1'></div>
+  <button id='cn-open-settings' class='button'>Settings</button>
+</header>
+<div id='cn-toasts' style='position:fixed;right:16px;top:72px;z-index:10001;display:flex;flex-direction:column;gap:8px'></div>
+
+
+<!-- === B4: Login Modal (polished) === -->
+<div id="cn-auth-modal" class="cn-modal cn-pop" role="dialog" aria-modal="true" aria-label="CipherNexus Login" style="display:flex;align-items:center;justify-content:center;position:fixed;inset:0;z-index:10000">
+  <div style="width:380px;background:var(--card);padding:18px;border-radius:12px;box-shadow:var(--shadow);backdrop-filter:blur(6px)">
+    <h2 style="margin:0 0 8px 0">Enter Room</h2>
+    <div style="display:flex;gap:8px">
+      <input id="cn-room-code" placeholder="Room code (secret)" style="flex:1;padding:8px;border-radius:8px;border:1px solid var(--glass);background:transparent;color:var(--text)"/>
+    </div>
+    <div style="margin-top:8px;display:flex;gap:8px">
+      <select id="cn-username-list" style="flex:1;padding:8px;border-radius:8px;background:transparent;color:var(--text);border:1px solid var(--glass)"></select>
+      <input id="cn-username-new" placeholder="New username" style="flex:1;padding:8px;border-radius:8px;border:1px solid var(--glass);background:transparent;color:var(--text)"/>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:12px;justify-content:flex-end">
+      <button id="cn-login-btn" class="button">Join</button>
+      <button id="cn-guest-btn" class="button ghost">Guest</button>
+    </div>
+    <div style="margin-top:10px;font-size:12px;opacity:0.85">Your session will be end-to-end encrypted using the room code. Usernames are stored locally only.</div>
+  </div>
+</div>
+<script>
+// focus helper and animation
+document.addEventListener('DOMContentLoaded', ()=>{
+  const modal = document.getElementById('cn-auth-modal');
+  if(modal){ modal.classList.add('active'); const inp = document.getElementById('cn-room-code'); inp && inp.focus(); }
+});
+</script>
+<!-- === End Login Modal === -->
+
+
+<!-- Loading + Auth UI -->
+<style>
+#cn-loading{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:linear-gradient(0deg,rgba(0,0,0,0.7),rgba(0,0,0,0.45));z-index:99999;flex-direction:column}
+.cn-spinner{width:72px;height:72px;border-radius:50%;border:8px solid rgba(255,255,255,0.08);border-top-color:#46d;animation:spin 1s linear infinite;margin-bottom:16px}
+@keyframes spin{to{transform:rotate(360deg)}}
+#cn-login{background:rgba(0,0,0,0.6);padding:20px;border-radius:12px;color:white;min-width:320px}
+#cn-login input, #cn-login select{width:100%;padding:8px;margin:6px 0;border-radius:6px;border:1px solid rgba(255,255,255,0.08);background:transparent;color:white}
+#cn-login button{padding:8px 12px;border-radius:8px;background:#46d;color:white;border:none}
+</style>
+<div id="cn-loading">
+  <div class="cn-spinner"></div>
+  <div id="cn-login">
+    <h3 style="margin:0 0 8px 0">Enter Room</h3>
+    <input id="cn-room" placeholder="Room code (secret)"/>
+    <select id="cn-username"></select>
+    <input id="cn-username-new" placeholder="Or enter new username"/>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button id="cn-join">Join</button>
+      <button id="cn-guest">Guest</button>
+    </div>
+    <div style="margin-top:8px;font-size:12px;opacity:0.8">Your session will be end-to-end encrypted using the room code.</div>
+  <div id="cn-progress"><i></i></div></div>
+</div>
+
+<!-- Added Feature UI: Video/Audio/Themes/Sidebar -->
+<style>
+/* theme basics */
+.theme-dark{--bg:#021021;--card:#072032;--text:#dfefff}
+.theme-neon{--bg:#060007;--card:#0b0920;--text:#f0f4ff}
+body{background:var(--bg);color:var(--text);font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif}
+.app-shell{display:flex;height:100vh;gap:12px;padding:12px}
+.sidebar{width:260px;background:var(--card);border-radius:12px;padding:12px;box-shadow:0 6px 18px rgba(0,0,0,0.6);overflow:auto}
+.content{flex:1;display:flex;flex-direction:column;gap:8px}
+.video-grid{display:flex;gap:8px;flex-wrap:wrap}
+.video-box{width:320px;height:200px;background:#000;border-radius:10px;overflow:hidden;position:relative}
+.video-box video{width:100%;height:100%;object-fit:cover}
+.controls{display:flex;gap:8px;align-items:center}
+.theme-toggle{margin-left:auto}
+.draggable{position:relative;cursor:move;background:linear-gradient(90deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01));padding:8px;border-radius:8px}
+#localPreview{width:160px;height:120px;border-radius:8px;overflow:hidden;background:#111}
+#remotePreview{width:320px;height:200px;border-radius:8px;overflow:hidden;background:#000}
+.record-btn{background:#ff4d4f;color:white;padding:8px;border-radius:8px;border:none}
+</style>
+
+<div class="app-shell theme-dark" id="appShell">
+  <div class="sidebar" id="sidebar">
+<!-- Theme selector -->
+<div style="margin-top:12px;">
+  <label for="cn-theme-select" style="display:block;margin-bottom:6px">Theme</label>
+  <select id="cn-theme-select" style="width:100%;padding:8px;border-radius:6px;background:transparent;color:inherit;border:1px solid rgba(255,255,255,0.06)">
+    <option value="theme-dark">Dark</option>
+    <option value="theme-neon">Neon</option>
+    <option value="theme-highcontrast">High Contrast</option>
+  </select>
+</div>
+<div class="theme-transition-overlay" id="cn-theme-overlay"></div>
+
+    <h3>CipherNexus</h3>
+    <div><button id="btnToggleTheme" class="button">Toggle Theme</button></div>
+    <hr/>
+    <div><strong>Devices</strong>
+      <div id="deviceList"></div>
+    </div>
+    <hr/>
+    <div><strong>Session</strong>
+      <div><input id="roomInput" placeholder="room code"/></div>
+      <div class="controls"><button id="joinBtn" class="button">Join</button><button id="leaveBtn" class="button ghost">Leave</button></div>
+    </div>
+    <hr/>
+    <div><strong>Media</strong>
+      <div class="controls"><button id="btnStartLocal" class="button">Start Cam</button><button id="btnStopLocal" class="button ghost">Stop Cam</button></div>
+      <div class="controls"><button id="btnShareScreen" class="button">Share Screen</button></div>
+      <div style="margin-top:8px;"><button id="recordAudioBtn" class="record-btn">Record Voice Msg</button></div>
+    </div>
+  </div>
+  <div class="content">
+    <div class="controls">
+      <div class="draggable" id="localPreview"><video id="localVideo" autoplay muted playsinline></video></div>
+      <div class="draggable" id="remotePreview"><video id="remoteVideo" autoplay playsinline></video></div>
+      <div class="theme-toggle"><span class="small">Theme:</span> <button id="themeNeon" class="button ghost">Neon</button></div>
+    </div>
+    <div class="video-grid" id="videoGrid"></div>
+    <div id="voiceMsgs"><h4>Voice messages</h4><div id="voiceList"></div></div>
+  </div>
+</div>
+<!-- End Feature UI -->
+
+<div id="qr-modal" 
+style="
+  position:fixed;top:0;left:0;width:100%;height:100%;
+  backdrop-filter:blur(12px);
+  background:rgba(0,0,0,0.35);
+  display:none;align-items:center;justify-content:center;
+  animation:fadeIn 0.3s ease;
+">
+  <div id="qr-card" style="
+    width:320px;height:420px;background:rgba(255,255,255,0.15);
+    border-radius:20px;backdrop-filter:blur(20px);
+    padding:20px;color:white;text-align:center;
+    animation:scaleIn 0.25s ease;
+  ">
+    <h2>Scan QR Code</h2>
+    <video id="qr-video" style="width:100%;border-radius:12px;"></video>
+    <div id="qr-status" style="margin-top:10px;font-size:14px;opacity:0.8;">Initializing…</div>
+  </div>
+</div>
+
+<style>
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes scaleIn{from{transform:scale(0.85)}to{transform:scale(1)}}
+</style>
+
+  <main>
+<!-- Polished UI Additions -->
+<style>
+/* Polished card layout and animated progress */
+.cnx-ui { max-width: 900px; margin: 18px auto; font-family: system-ui, -apple-system, 'Segoe UI', Roboto; }
+.cnx-card { background: linear-gradient(135deg,#071024 0%, #08132a 100%); padding:18px; border-radius:12px; box-shadow:0 8px 30px rgba(2,6,23,0.6); color:#dceefb; }
+.cnx-row{display:flex;gap:8px;align-items:center;margin-top:8px;}
+.cnx-label{font-size:13px;color:#9fb0d9;}
+#dropZone{border:2px dashed rgba(255,255,255,0.06); padding:20px; border-radius:8px; text-align:center; transition:background .2s, border-color .2s; cursor:pointer;}
+#dropZone.dragover{background:rgba(255,255,255,0.02); border-color:rgba(99,102,241,0.6);}
+.progress-wrap{margin-top:12px;background:rgba(255,255,255,0.02); padding:8px;border-radius:8px;overflow:hidden;}
+.progress-bar{height:12px;background:linear-gradient(90deg,#22c55e,#06b6d4); width:0%; border-radius:6px; transition: width .35s ease; box-shadow:0 4px 12px rgba(6,9,16,0.6);}
+.small{font-size:12px;color:#a6c0e8;}
+.button{background:#0ea5e9;border:none;padding:8px 12px;border-radius:8px;color:#042a3a; cursor:pointer;font-weight:600;}
+.button.ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);color:inherit;}
+#qrCanvas{width:160px;height:160px;background:#021022;border-radius:8px;padding:6px;}
+</style>
+
+<div class="cnx-ui">
+  <div class="cnx-card">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <h2 style="margin:0">CipherNexus — Secure Files</h2>
+      <div style="text-align:right">
+        <button id="exportKeyBtn" class="button">Export Key</button>
+        <button id="importKeyBtn" class="button ghost">Import Key</button>
+        <input id="importKeyFile" type="file" accept="text/*" style="display:none" />
+      </div>
+    </div>
+
+    <div style="margin-top:12px" class="small">Drag & drop files to encrypt & send to peers, or click the area to choose files.</div>
+    <div id="dropZone" tabindex="0" role="button" aria-label="Drop files here">Drop files here or click to select</div>
+
+    <div class="progress-wrap" style="display:none" id="fileProgressWrap">
+      <div id="fileProgressLabel" class="small">Preparing…</div>
+      <div style="height:8px;background:rgba(255,255,255,0.03);border-radius:6px;margin-top:8px;overflow:hidden;">
+        <div id="fileProgressBar" class="progress-bar"></div>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:12px;margin-top:12px;align-items:center">
+      <div>
+        <div class="cnx-label">Session link (URL-safe)</div>
+        <input id="sessionLink" readonly style="width:420px;padding:8px;border-radius:6px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit" />
+      </div>
+      <div style="text-align:center">
+        <div class="cnx-label">Session QR</div>
+        <canvas id="qrCanvas" title="QR code (session)"></canvas>
+        <div style="margin-top:8px"><button id="copySessionBtn" class="button ghost">Copy</button></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+<!-- End Polished UI Additions -->
+
+    <h1>CipherNexus — Static (GitHub Pages)</h1>
+    <div class="card">
+      <label>Room code / Password</label>
+      <div class="row"><input id="roomCode" placeholder="Type a room code / password" /><button id="deriveBtn">Derive & Test</button></div>
+      <label>Plaintext</label>
+      <div class="row"><textarea id="plaintext" rows="4" style="flex:1"></textarea></div>
+      <div class="row"><button id="encryptBtn">Encrypt (AES-GCM)</button><button id="decryptBtn">Decrypt</button></div>
+      <label>Result</label>
+      <pre id="result">No operations yet.</pre>
+    </div>
+    <p style="font-size:13px;color:#9fb0d9">This static build loads Argon2 from a CDN and performs client-side encryption (Argon2 -> HKDF -> AES-GCM). Files are prepared to run on GitHub Pages without a build step.</p>
+  </main>
+
+  <script type="module" src="./src/main.min.js"></script>
+
+<!-- QR Scan Modal -->
+<div id="qrScanModal" style="display:none; position:fixed; inset:0; background:#0009; backdrop-filter:blur(4px); justify-content:center; align-items:center; z-index:9999;">
+  <div style="background:#0a0f1c; padding:20px; border-radius:10px; width:320px; color:white; text-align:center;">
+    <h3>Scan QR to Join Session</h3>
+    <video id="qrVideo" width="260" height="200" autoplay playsinline style="background:#111;border-radius:8px;"></video>
+    <div style="margin-top:10px;">
+      <button id="qrScanStop" class="button ghost">Stop</button>
+      <button id="qrScanImage" class="button">Scan Image</button>
+      <input id="qrImageFile" type="file" accept="image/*" style="display:none"/>
+    </div>
+    <div id="qrScanStatus" style="margin-top:10px;font-size:12px;color:#9fc4ff;"></div>
+  </div>
+</div>
+
+
+<div id="qr-modal" style="display:none;"></div>
+
+<div id="qr-create-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%;
+backdrop-filter:blur(12px); background:rgba(0,0,0,0.45); align-items:center; justify-content:center;">
+  <div style="background:rgba(255,255,255,0.12); border-radius:16px; padding:20px; width:320px;">
+    <h2 style="color:white; text-align:center;">Session QR</h2>
+    <div id="qr-output" style="margin-top:15px;"></div>
+    <p style="text-align:center; color:white; opacity:0.8;">Signed + Compressed</p>
+  </div>
+</div>
+
+
+<!-- === B1 Loading Screen === -->
+<div id="cn-loading-screen">
+    <div class="cn-loader-spinner"></div>
+    <div class="cn-loader-text">CipherNexus loading…</div>
+</div>
+<script>
+window.addEventListener('load',()=>{
+    const el=document.getElementById('cn-loading-screen');
+    el.style.opacity='0';
+    setTimeout(()=>el.remove(),600);
+});
+</script>
+
+
+<script>
+// Auto-join handler: reads ?join=ROOM&user=NAME or ?enc=BASE64 (optional encrypted payload)
+// If enc param present, attempts to decrypt using window.cryptoHelpers after modal loads.
+(function(){
+  function params(){ return Object.fromEntries(new URLSearchParams(location.search)); }
+  document.addEventListener('DOMContentLoaded', async ()=>{
+    const p = params();
+    if(p.join && p.user){
+      // prefill and auto-click join
+      const rc = document.getElementById('cn-room-code'); const us = document.getElementById('cn-username-new'); const sel = document.getElementById('cn-username-list');
+      if(rc) rc.value = p.join;
+      if(us) us.value = p.user;
+      // wait a small amount for UI to be ready then trigger join
+      setTimeout(()=> document.getElementById('cn-login-btn')?.click(), 500);
+    } else if(p.enc){
+      // encrypted payload expected: base64 JSON with {room, user} encrypted using same AES/HMAC; try to decrypt
+      try{
+        const raw = atob(p.enc);
+        // attempt parse as JSON plaintext first
+        try{ const o = JSON.parse(raw); if(o.room) { document.getElementById('cn-room-code').value=o.room; document.getElementById('cn-username-new').value=o.user||''; setTimeout(()=>document.getElementById('cn-login-btn')?.click(),500); return; } }catch(e){}
+        // else leave to manual decryption by user after entering code (security)
+      }catch(e){ console.warn('auto-join parse failed', e); }
+    }
+  });
+})();
+</script>
+
+
+<!-- Pairing export button -->
+<button id="cn-pair-export" class="button" style="margin-top:10px;width:100%">Generate Pairing QR</button>
+<script>
+document.addEventListener('DOMContentLoaded',()=>{
+  const b=document.getElementById('cn-pair-export');
+  if(b) b.onclick=async ()=>{
+    const payload = await CN_GeneratePairingPayload();
+    if(!payload){ alert("Missing room/user or key not ready."); return; }
+    // The actual QR generation is handled later in QR phase.
+    console.log("Pair payload:", payload);
+    alert("Pairing payload ready (check console). QR integration in D1–D4 phases.");
+  };
+});
+</script>
+
+
+<script>
+// D3: Auto-join via encrypted payload: ?enc=BASE64
+document.addEventListener('DOMContentLoaded', async ()=>{
+  const p = Object.fromEntries(new URLSearchParams(location.search));
+  if(p.enc){
+    try{
+      // attempt to parse as base64 payload; user must enter room code to derive keys first
+      const payloadB64 = p.enc;
+      // try to use existing AES key to unpack
+      if(window.cryptoHelpers && window.cryptoHelpers.CN_Unpack_RoomPayload && window.__CIPHERNEXUS_AES_KEY){
+        const data = await window.cryptoHelpers.CN_Unpack_RoomPayload(payloadB64);
+        if(data && data.room){ document.getElementById('cn-room-code').value = data.room; document.getElementById('cn-username-new').value = data.user||''; setTimeout(()=>document.getElementById('cn-login-btn')?.click(),400); }
+      } else {
+        console.log('Encrypted payload present; please enter room code to derive keys then reload to auto-join.');
+      }
+    }catch(e){ console.warn('auto-join enc failed', e); }
+  }
+});
+</script>
+
+</body>
+
+</html>
