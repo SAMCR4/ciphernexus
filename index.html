@@ -1,389 +1,622 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>CIPHER_NEXUS | BLACK BOX</title>
-    
-    <!-- Dependencies -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    
-    <!-- Firebase SDK -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, deleteDoc, updateDoc, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+<title>CIPHER_NEXUS | Shared Link</title>
 
-        // STANDARD CONFIGURATION (Most Stable)
-        const firebaseConfig = {
-            apiKey: "AIzaSyBQYYnJY40FQWzmlRLnrQbEnOPIP3GPn-k",
-            authDomain: "uncsam-d938d.firebaseapp.com",
-            projectId: "uncsam-d938d",
-            storageBucket: "uncsam-d938d.firebasestorage.app",
-            messagingSenderId: "16799293764",
-            appId: "1:16799293764:web:835733dd944868908e7711",
-            measurementId: "G-QBH09TB8YK"
-        };
+<!-- Tailwind CDN for utilities -->
+<script src="https://cdn.tailwindcss.com"></script>
+<!-- React (UMD) -->
+<script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-        try {
-            const app = initializeApp(firebaseConfig);
-            window.SYS = {
-                auth: getAuth(app),
-                db: getFirestore(app),
-                ops: { signInAnonymously, doc, setDoc, deleteDoc, updateDoc, onSnapshot, serverTimestamp }
-            };
-            window.FIREBASE_READY = true;
-            console.log("System Core: ONLINE");
-        } catch (e) {
-            console.error("System Core: FAILED", e);
-            document.body.innerHTML = "<div style='color:red;padding:20px'>CRITICAL ERROR: " + e.message + "</div>";
-        }
-    </script>
+<!-- Firebase SDK (modular) -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+  import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+  import { getFirestore, doc, setDoc, deleteDoc, updateDoc, onSnapshot, serverTimestamp, runTransaction } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@100..800&display=swap');
-        :root { --p: #0f0; --b: #000; --d: #050505; --err: #ff3333; }
-        body { background: var(--d); color: var(--p); font-family: 'JetBrains Mono', monospace; overflow: hidden; touch-action: none; }
-        .scanline { width: 100%; height: 100px; z-index: 50; background: linear-gradient(0deg, transparent 0%, rgba(0, 255, 0, 0.04) 50%, transparent 100%); opacity: 0.1; position: absolute; bottom: 100%; animation: scan 10s linear infinite; pointer-events: none; }
-        @keyframes scan { 0% { bottom: 100%; } 100% { bottom: -100%; } }
-        .term-border { border: 1px solid #00ff41; box-shadow: 0 0 10px rgba(0, 255, 65, 0.2); background: rgba(0,0,0,0.95); transition: border-color 0.2s; }
-        .loading-bar { width: 0%; height: 2px; background: #0f0; transition: width 0.5s; }
-        #boot-log { font-size: 10px; color: #005500; margin-top: 10px; height: 100px; overflow: hidden; }
-    </style>
+  const firebaseConfig = {
+    apiKey: "AIzaSyBQYYnJY40FQWzmlRLnrQbEnOPIP3GPn-k",
+    authDomain: "uncsam-d938d.firebaseapp.com",
+    projectId: "uncsam-d938d",
+    storageBucket: "uncsam-d938d.firebasestorage.app",
+    messagingSenderId: "16799293764",
+    appId: "1:16799293764:web:835733dd944868908e7711",
+    measurementId: "G-QBH09TB8YK"
+  };
+
+  try {
+    const app = initializeApp(firebaseConfig);
+    window.db = getFirestore(app);
+    window.auth = getAuth(app);
+    window.fb = { signInAnonymously, doc, setDoc, deleteDoc, updateDoc, onSnapshot, serverTimestamp, runTransaction };
+    console.log("CORE: ONLINE");
+  } catch (e) {
+    console.error("CORE: FAILED", e);
+  }
+</script>
+
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@100..800&display=swap');
+  :root { --p: #0f0; --b:#000; --d:#050505; --err:#ff3333; }
+  body { margin:0; height:100vh; background:var(--d); color:var(--p); font-family:'JetBrains Mono', monospace; overflow:hidden; touch-action:none; }
+  .scanline { width:100%; height:100px; z-index:50; background:linear-gradient(0deg, transparent 0%, rgba(0,255,0,0.04) 50%, transparent 100%); opacity:0.08; position:absolute; bottom:100%; animation:scanline 10s linear infinite; pointer-events:none; }
+  @keyframes scanline { 0% { bottom:100%; } 100% { bottom:-100%; } }
+  .flicker { animation:flicker 0.08s infinite; }
+  @keyframes flicker { 0%{opacity:0.96} 100%{opacity:1} }
+  ::-webkit-scrollbar{width:6px} ::-webkit-scrollbar-track{background:#001100} ::-webkit-scrollbar-thumb{background:#0f0}
+  .term-border{border:1px solid #00ff41;box-shadow:0 0 10px rgba(0,255,65,0.15);background:rgba(0,0,0,0.95)}
+  .loading-bar{width:0%;height:3px;background:#0f0;transition:width 0.12s}
+  .crt{filter:contrast(1.02) saturate(1.02)}
+  .widget{position:absolute;border:1px solid rgba(0,255,65,0.12);background:linear-gradient(180deg,rgba(0,0,0,0.95),rgba(0,0,0,0.85));box-shadow:0 8px 30px rgba(0,255,65,0.03); color:#b6ffb6; overflow:hidden; border-radius:6px}
+  .widget .hdr{cursor:grab;background:rgba(0,0,0,0.6);padding:6px 8px;display:flex;align-items:center;justify-content:space-between;gap:8px;border-bottom:1px solid rgba(0,255,65,0.02);font-size:12px}
+  .widget .content{padding:8px;height:calc(100% - 36px);overflow:auto;font-size:13px}
+  .btn-ghost{background:transparent;border:1px solid rgba(0,255,65,0.06);padding:4px 6px;font-size:11px;color:#b6ffb6;cursor:pointer;border-radius:4px}
+  .small{font-size:11px;opacity:0.85}
+  .chat-msg{padding:6px;margin-bottom:8px;border-radius:6px;background:rgba(0,0,0,0.45);border:1px solid rgba(0,255,65,0.03)}
+  .theme-swatch{width:48px;height:34px;border-radius:6px;border:1px solid rgba(255,255,255,0.04);cursor:pointer;overflow:hidden}
+  .muted-badge{font-size:10px;padding:3px 6px;border-radius:999px;background:#222;color:#f55;border:1px solid rgba(255,0,0,0.06)}
+  .reaction{cursor:pointer; user-select:none}
+</style>
 </head>
 <body>
-    <div id="root">
-        <div style="height:100vh;display:flex;align-items:center;justify-content:center;flex-direction:column;background:#000;color:#0f0;">
-            <div style="font-size:24px;letter-spacing:5px;margin-bottom:20px;">SYSTEM BOOT</div>
-            <div style="width:300px;background:#002200;height:4px;"><div id="loader" class="loading-bar"></div></div>
-            <div id="boot-log">Initializing Core...</div>
-        </div>
+  <div id="root">
+    <div style="height:100vh;display:flex;align-items:center;justify-content:center;flex-direction:column;background:#050505;color:#0f0;font-family:'Courier New',monospace;">
+      <div style="font-size:24px;letter-spacing:5px;margin-bottom:20px;font-weight:bold;">NEXUS</div>
+      <div style="width:300px;background:#002200;height:4px;"><div id="loader" class="loading-bar"></div></div>
+      <div style="font-size:10px;margin-top:10px;opacity:0.7">ESTABLISHING UPLINK...</div>
     </div>
+  </div>
 
-    <script type="text/babel" data-presets="env,react">
-        const { useState, useEffect, useRef } = React;
+  <script type="text/babel" data-presets="env,react">
+  const { useEffect, useRef, useState } = React;
 
-        const Icon = ({ d, c }) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={c}><path d={d}/></svg>;
+  /********** Utilities **********/
+  const Crypto = {
+    getKey: async (pass) => {
+      const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(pass), { name:'PBKDF2' }, false, ['deriveKey']);
+      return crypto.subtle.deriveKey({ name:'PBKDF2', salt:new TextEncoder().encode('NEXUS_SALT_MULTI_V15'), iterations:100000, hash:'SHA-256' }, base, { name:'AES-GCM', length:256 }, false, ['encrypt','decrypt']);
+    },
+    encrypt: async (data, key) => {
+      const iv = crypto.getRandomValues(new Uint8Array(12));
+      const encoded = new TextEncoder().encode(JSON.stringify(data));
+      const ct = await crypto.subtle.encrypt({ name:'AES-GCM', iv }, key, encoded);
+      const comb = new Uint8Array(iv.byteLength + ct.byteLength);
+      comb.set(iv,0); comb.set(new Uint8Array(ct), iv.byteLength);
+      let s=''; for(let i=0;i<comb.length;i++) s+=String.fromCharCode(comb[i]);
+      return btoa(s);
+    },
+    decrypt: async (b64, key) => {
+      try {
+        const s = atob(b64);
+        const arr = new Uint8Array(s.length); for(let i=0;i<s.length;i++) arr[i]=s.charCodeAt(i);
+        const iv = arr.slice(0,12); const ct = arr.slice(12);
+        const plain = await crypto.subtle.decrypt({ name:'AES-GCM', iv }, key, ct);
+        return JSON.parse(new TextDecoder().decode(plain));
+      } catch (e) { return null; }
+    },
+    hash: async (p) => {
+      const d = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(p));
+      return Array.from(new Uint8Array(d)).map(b=>b.toString(16).padStart(2,'0')).join('');
+    }
+  };
 
-        const Crypto = {
-            getKey: async (pass) => window.crypto.subtle.deriveKey({ name: "PBKDF2", salt: new TextEncoder().encode("NEXUS_SALT_V13"), iterations: 100000, hash: "SHA-256" }, await window.crypto.subtle.importKey("raw", new TextEncoder().encode(pass), { name: "PBKDF2" }, false, ["deriveKey"]), { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]),
-            encrypt: async (data, key) => { const iv = window.crypto.getRandomValues(new Uint8Array(12)); const e = await window.crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, new TextEncoder().encode(JSON.stringify(data))); return btoa(String.fromCharCode(...new Uint8Array(iv), ...new Uint8Array(e))); },
-            decrypt: async (b, k) => { try { const s = atob(b), c = new Uint8Array(s.length); for(let i=0;i<s.length;i++) c[i]=s.charCodeAt(i); return JSON.parse(new TextDecoder().decode(await window.crypto.subtle.decrypt({ name: "AES-GCM", iv: c.slice(0,12) }, k, c.slice(12)))); } catch { return null; } },
-            hash: async (p) => Array.from(new Uint8Array(await window.crypto.subtle.digest('SHA-256', new TextEncoder().encode(p)))).map(b=>b.toString(16).padStart(2,'0')).join('')
-        };
+  const generateSillyName = () => {
+    const adj = ["Cyber","Neon","Glitch","Null","Quantum","Holo","Turbo","Stealth","Rogue","Binary"];
+    const nouns = ["Ninja","Toaster","Ghost","Surfer","Viper","Panda","Cactus","Pirate","Wizard","Drone"];
+    return adj[Math.floor(Math.random()*adj.length)] + "_" + nouns[Math.floor(Math.random()*nouns.length)] + "_" + Math.floor(Math.random()*99);
+  };
 
-        const App = () => {
-            const [ready, setReady] = useState(false);
-            const [view, setView] = useState('boot'); 
-            const [pass, setPass] = useState('');
-            const [status, setStatus] = useState('');
-            const [widgets, setWidgets] = useState([]);
-            const [key, setKey] = useState(null);
-            const [docId, setDocId] = useState(null);
-            const [userId, setUserId] = useState('UNK');
-            const [topZ, setTopZ] = useState(10); 
-            
-            // Interaction Lock to prevent glitching while dragging
-            const isInteracting = useRef(false);
+  // chat themes (backgrounds are examples; replace or host your own assets if desired)
+  const CHAT_THEMES = {
+    void: { name:'Void', bg:'#000', color:'#0f0' },
+    neon: { name:'Neon Grid', bg:'linear-gradient(135deg,#12002b 0%, #17334f 100%)', color:'#9ef79e' },
+    glitch: { name:'Glitch', bg:'url(https://i.imgur.com/t94GJp1.gif)', color:'#fff' },
+    star: { name:'Starfield', bg:'linear-gradient(0deg,#001 0%, #00161a 100%)', color:'#aaf' },
+    carbon: { name:'Carbon', bg:'linear-gradient(180deg,#0b0b0b,#111)', color:'#7ff' }
+  };
 
-            // Robust Loader
-            useEffect(() => {
-                let p = 0;
-                const i = setInterval(() => {
-                    if (window.FIREBASE_READY || p > 90) {
-                        clearInterval(i);
-                        document.getElementById('loader').style.width = '100%';
-                        setTimeout(() => setReady(true), 500);
-                    } else {
-                        p += 10;
-                        document.getElementById('loader').style.width = p + '%';
-                    }
-                }, 200);
-                // Fail-safe timeout
-                setTimeout(() => setReady(true), 5000); 
-            }, []);
+  // sounds
+  const SFX = {
+    msg: new Audio('https://assets.mixkit.co/sfx/preview/mixkit-message-pop-alert-2354.mp3'),
+    join: new Audio('https://assets.mixkit.co/sfx/preview/mixkit-player-level-up-2016.mp3')
+  };
+  // quick safety: set volumes low
+  Object.values(SFX).forEach(s=>{ s.volume=0.25; s.preload='auto'; });
 
-            useEffect(() => { if (ready) setTimeout(() => setView('login'), 1000); }, [ready]);
+  // snap to 8px grid
+  const snapToGrid = (x,y,grid=8) => ({ x: Math.round(x/grid)*grid, y: Math.round(y/grid)*grid });
 
-            const connect = async (e) => {
-                e.preventDefault();
-                if (pass === '1715') { setView('duress'); return; }
-                if (pass.length < 6) { setStatus('KEY TOO SHORT'); return; }
-                setStatus('AUTHENTICATING...');
-                
-                try {
-                    const { auth, db, ops } = window.SYS;
-                    const u = await ops.signInAnonymously(auth);
-                    setUserId(u.user.uid.substring(0, 4).toUpperCase());
-                    
-                    const cryptoKey = await Crypto.getKey(pass);
-                    const id = await Crypto.hash(pass);
-                    setKey(cryptoKey);
-                    setDocId(id);
+  /********** App **********/
+  const App = () => {
+    const [ready, setReady] = useState(false);
+    const [view, setView] = useState('boot');
+    const [pass, setPass] = useState('');
+    const [status, setStatus] = useState('');
+    const [widgets, setWidgets] = useState([]);
+    const [key, setKey] = useState(null);
+    const [docId, setDocId] = useState(null);
+    const [userId, setUserId] = useState('');
+    const [topZ, setTopZ] = useState(10);
+    const [userCount, setUserCount] = useState(1);
+    const [inputName, setInputName] = useState('');
+    const [savedNames, setSavedNames] = useState([]);
+    const [settings, setSettings] = useState({ sound:true, flicker:true, scanlines:true });
+    const interactingWidgetId = useRef(null);
+    const snapUnsub = useRef(null);
 
-                    const docRef = ops.doc(db, 'nexus_secure_storage', id);
-                    ops.onSnapshot(docRef, async (snap) => {
-                        // Ignore server updates if we are actively interacting (prevents glitch back)
-                        if (isInteracting.current) return;
+    useEffect(()=> {
+      let p=0;
+      const i = setInterval(()=> {
+        const loader = document.getElementById('loader');
+        p += 12;
+        if (loader) loader.style.width = Math.min(100,p)+'%';
+        if (window.auth || p>90) { clearInterval(i); setTimeout(()=> setReady(true), 400); }
+      }, 100);
+      const saved = JSON.parse(localStorage.getItem('nexus_saved_names') || '[]');
+      setSavedNames(saved);
+      setInputName(generateSillyName());
+      return ()=> clearInterval(i);
+    }, []);
 
-                        if (snap.exists()) {
-                            const raw = snap.data();
-                            if (raw.encryptedData) {
-                                const dec = await Crypto.decrypt(raw.encryptedData, cryptoKey);
-                                if (dec) setWidgets(dec);
-                            }
-                        } else {
-                            saveData([], cryptoKey, id);
-                        }
-                    }, (err) => setStatus('DB ERROR: ENABLE RULES'));
-                    
-                    setStatus('UPLINK ESTABLISHED');
-                    setTimeout(() => setView('dashboard'), 800);
-                } catch (err) { setStatus('CONNECTION REFUSED'); }
-            };
+    useEffect(()=> { if (ready) setTimeout(()=> setView('login'), 600); }, [ready]);
 
-            const saveData = async (data, activeKey, activeId) => {
-                if (!activeKey || !activeId) return;
-                const { db, ops } = window.SYS;
-                const enc = await Crypto.encrypt(data, activeKey);
-                try { await ops.setDoc(ops.doc(db, 'nexus_secure_storage', activeId), { encryptedData: enc, updated: ops.serverTimestamp() }); } catch(e) {}
-            };
-
-            // Atomic Actions (Fixes Zombie Windows)
-            const atomicUpdate = (fn) => {
+    // connect / room setup
+    const connect = async (e) => {
+      e && e.preventDefault();
+      const cleanPass = pass.trim();
+      const cleanName = (inputName||'').trim() || 'Unknown_Entity';
+      if (cleanPass === '1715') { setView('duress'); return; }
+      if (cleanPass.length < 6) { setStatus('KEY TOO SHORT (MIN 6)'); return; }
+      setStatus('SEARCHING FREQUENCY...');
+      try {
+        await window.fb.signInAnonymously(window.auth);
+        setUserId(cleanName);
+        if (!savedNames.includes(cleanName)) {
+          const newSaved = [cleanName, ...savedNames].slice(0,5);
+          setSavedNames(newSaved);
+          localStorage.setItem('nexus_saved_names', JSON.stringify(newSaved));
+        }
+        const cryptoKey = await Crypto.getKey(cleanPass);
+        const idHash = await Crypto.hash(cleanPass);
+        setKey(cryptoKey); setDocId(idHash);
+        const ref = window.fb.doc(window.db,'nexus_multiplayer_v1', idHash);
+        if (snapUnsub.current) { snapUnsub.current(); snapUnsub.current = null; }
+        snapUnsub.current = window.fb.onSnapshot(ref, async (snap) => {
+          if (snap.exists()) {
+            const raw = snap.data();
+            if (raw.activeUsers) {
+              const count = Object.keys(raw.activeUsers).filter(k=>raw.activeUsers[k] > Date.now()-60000).length;
+              setUserCount(count || 1);
+            }
+            if (raw.encryptedData) {
+              const dec = await Crypto.decrypt(raw.encryptedData, cryptoKey);
+              if (dec) {
                 setWidgets(prev => {
-                    const next = fn(prev);
-                    saveData(next, key, docId); // Save the exact calculated state immediately
-                    return next;
+                  const activeId = interactingWidgetId.current;
+                  if (!activeId) return dec;
+                  // preserve locally-interacted widget
+                  return dec.map(sW => sW.id === activeId ? (prev.find(p=>p.id===activeId) || sW) : sW);
                 });
-            };
+                // sound on join for others
+                if (settings.sound) SFX.join.play().catch(()=>{});
+              }
+            }
+          } else {
+            await saveData([], cryptoKey, idHash);
+          }
+        }, (err)=> setStatus('DB ERROR: ' + (err && err.code?err.code:err.message||'unknown')));
+        setStatus('UPLINK ESTABLISHED');
+        setTimeout(()=> setView('dashboard'), 700);
+      } catch (err) { console.error(err); setStatus('CONNECTION REFUSED'); }
+    };
 
-            const add = (type) => {
-                const randX = Math.floor(Math.random() * (window.innerWidth - 350)) + 20;
-                const randY = Math.floor(Math.random() * (window.innerHeight - 300)) + 80;
-                const w = { id: Date.now().toString(), type, x: randX, y: randY, w: 320, h: 240, z: topZ + 1, d: (type === 'chat' || type === 'flash') ? [] : '' };
-                setTopZ(z => z + 1);
-                atomicUpdate(prev => [...prev, w]);
-            };
+    // save whole room (encrypted)
+    const saveData = async (data, activeKey = key, activeId = docId) => {
+      if (!activeKey || !activeId) return;
+      try {
+        const enc = await Crypto.encrypt(data, activeKey);
+        const ref = window.fb.doc(window.db,'nexus_multiplayer_v1', activeId);
+        await window.fb.setDoc(ref, { encryptedData: enc, updated: window.fb.serverTimestamp() }, { merge:true });
+      } catch (e) { console.error('saveData error', e); }
+    };
 
-            const mod = (id, fields, persist = false) => {
-                // If persistent, we use atomicUpdate to save immediately
-                // If not (dragging), we just set state locally
-                if (persist) {
-                    atomicUpdate(prev => prev.map(w => w.id === id ? { ...w, ...fields } : w));
-                } else {
-                    setWidgets(prev => prev.map(w => w.id === id ? { ...w, ...fields } : w));
-                }
-            };
+    // spawn widget factory
+    const add = (type) => {
+      const randX = Math.floor(Math.random()*(window.innerWidth-360))+40;
+      const randY = Math.floor(Math.random()*(window.innerHeight-360))+120;
+      const id = Date.now().toString();
+      const themeKeys = Object.keys(CHAT_THEMES);
+      const defaultTheme = CHAT_THEMES[themeKeys[Math.floor(Math.random()*themeKeys.length)]];
+      const w = {
+        id, type, x:randX, y:randY, w:320, h:(type==='cam'?240:220), z: topZ+1,
+        d: (type==='chat'||type==='flash'||type==='comm')?[]:(type==='note'? '':''),
+        meta: { theme: defaultTheme, muted:false }
+      };
+      setTopZ(z=>z+1);
+      setWidgets(prev => { const next = [...prev, w]; saveData(next); return next; });
+    };
 
-            const del = (id) => atomicUpdate(prev => prev.filter(w => w.id !== id));
+    const mod = (id, fields) => setWidgets(prev => prev.map(w => w.id===id?{...w,...fields}:w));
+    const del = (id) => setWidgets(prev => { const next = prev.filter(w=>w.id!==id); saveData(next); return next; });
 
-            const handleNuke = async () => {
-                if (!window.confirm("CONFIRM NUKE?")) return;
-                try {
-                    const { db, ops } = window.SYS;
-                    const ref = ops.doc(db, 'nexus_secure_storage', docId);
-                    await ops.deleteDoc(ref);
-                    window.location.reload();
-                } catch (e) { window.location.reload(); }
-            };
+    const nuke = async () => {
+      if (!confirm("WARNING: THIS DELETES THE ROOM FOR EVERYONE.")) return;
+      try {
+        const ref = window.fb.doc(window.db,'nexus_multiplayer_v1', docId);
+        await window.fb.deleteDoc(ref);
+        location.reload();
+      } catch(e) { location.reload(); }
+    };
 
-            if (view === 'duress') return <div className="h-screen bg-gray-100 p-10 font-sans text-gray-800"><h1 className="text-2xl font-bold">System Status</h1><div>All systems nominal.</div></div>;
-            
-            if (view === 'login') return (
-                <div className="h-screen bg-black text-green-500 flex items-center justify-center p-4">
-                    <div className="term-border p-8 bg-black/90 max-w-md w-full relative z-20">
-                        <div className="text-center mb-8"><h1 className="text-2xl font-bold tracking-[0.2em]">NEXUS V13</h1><div className="text-[10px]">AES-256 ENCRYPTION</div></div>
-                        <form onSubmit={connect}><input type="password" value={pass} onChange={e=>setPass(e.target.value)} className="w-full bg-black border-b border-green-700 p-2 text-center text-green-400 outline-none mb-6 tracking-widest" placeholder="ACCESS KEY" autoFocus /><button className="w-full border border-green-600 py-2 hover:bg-green-900/50 text-xs font-bold">INITIALIZE</button></form>
-                        <div className="mt-4 text-center h-4 text-xs text-red-500">{status}</div>
-                    </div>
+    // autosave when widgets mutate (debounced)
+    useEffect(()=> {
+      const t = setTimeout(()=> { if (key && docId) saveData(widgets, key, docId); }, 350);
+      return ()=> clearTimeout(t);
+    }, [widgets]);
+
+    useEffect(()=> { return ()=> { if (snapUnsub.current) snapUnsub.current(); }; }, []);
+
+    if (view === 'duress') return (
+      <div className="h-screen bg-gray-100 p-10 font-sans text-gray-800">
+        <h1 className="text-2xl font-bold">System Status</h1>
+        <div>All systems nominal.</div>
+      </div>
+    );
+
+    if (view === 'login') return (
+      <div className="h-screen bg-black text-green-500 flex items-center justify-center p-4">
+        <div className="term-border p-8 bg-black/90 max-w-md w-full relative z-20">
+          <div className="text-center mb-8">
+            <h1 className="text-2xl font-bold tracking-[0.2em]">NEXUS V16</h1>
+            <div className="text-[10px]">IDENTITY UPLINK</div>
+          </div>
+          <form onSubmit={connect}>
+            <div className="mb-4">
+              <label className="text-[10px] block mb-1 text-green-700">CODENAME</label>
+              <input type="text" value={inputName} onChange={e=>setInputName(e.target.value)} className="w-full bg-black border border-green-800 p-2 text-green-400 outline-none focus:border-green-500 text-sm" placeholder="IDENTITY" />
+              {savedNames.length>0 && <div className="flex flex-wrap gap-2 mt-2">
+                {savedNames.map(n=> <button key={n} type="button" onClick={()=>setInputName(n)} className="text-[9px] border border-green-900 px-2 py-1 hover:bg-green-900/30 text-green-600">{n}</button>)}
+              </div>}
+            </div>
+            <div className="mb-6">
+              <label className="text-[10px] block mb-1 text-green-700">ROOM CODE</label>
+              <input type="password" value={pass} onChange={e=>setPass(e.target.value)} className="w-full bg-black border border-green-800 p-2 text-green-400 outline-none focus:border-green-500 tracking-widest text-center" placeholder="ACCESS KEY" />
+            </div>
+            <button className="w-full border border-green-600 py-2 hover:bg-green-900/50 text-xs font-bold">JOIN NETWORK</button>
+          </form>
+          <div className="mt-4 text-center h-4 text-xs text-red-500">{status}</div>
+        </div>
+      </div>
+    );
+
+    // map color helpers for left toolbar (kept simple)
+    const colorMap = { green:{border:'rgba(0,128,0,0.25)', text:'#9ef79e'}, yellow:{border:'rgba(180,150,0,0.25)', text:'#ffeaa7'}, blue:{border:'rgba(0,90,150,0.25)', text:'#9ed2ff'}, red:{border:'rgba(150,0,0,0.25)', text:'#ff9e9e'} };
+
+    return (
+      <div className={"h-screen bg-black text-green-500 relative overflow-hidden crt " + (settings.flicker? 'flicker':'')}>
+        {settings.scanlines && <div className="scanline" style={{opacity:0.06}}></div>}
+        <div className="absolute top-0 w-full h-10 border-b border-green-900 bg-black/90 flex items-center justify-between px-4 z-50">
+          <div className="text-xs flex gap-2 items-center">
+            <span style={{width:10,height:10,background:'#0f0',borderRadius:6,display:'inline-block',boxShadow:'0 0 6px rgba(0,255,65,0.3)'}}></span>
+            <div className="small">ROOM: {pass.substring(0,8)}... | ID: {userId}</div>
+          </div>
+          <div className="flex gap-4 items-center">
+            <div className="text-[10px] text-green-700">USERS ONLINE: {userCount || 1}</div>
+            <button onClick={nuke} style={{border:'1px solid rgba(255,0,0,0.2)', padding:'4px 8px'}} className="text-[10px] text-red-500 hover:bg-red-900/20">NUKE</button>
+          </div>
+        </div>
+
+        <div className="absolute left-0 top-10 bottom-0 w-12 border-r border-green-900 bg-black/90 z-40 flex flex-col items-center py-4 gap-2">
+          <ToolBtn label="CHAT" color={colorMap.green} onClick={()=>add('chat')} />
+          <ToolBtn label="FLSH" color={colorMap.yellow} onClick={()=>add('flash')} />
+          <ToolBtn label="VOX" color={colorMap.blue} onClick={()=>add('comm')} />
+          <ToolBtn label="CAM" color={colorMap.red} onClick={()=>add('cam')} />
+          <ToolBtn label="NOTE" color={colorMap.green} onClick={()=>add('note')} />
+          <ToolBtn label="SET" color={colorMap.blue} onClick={()=>add('settings')} />
+        </div>
+
+        <div className="absolute inset-0 top-10 left-12">
+          {widgets.map(w => (
+            <Widget key={w.id} data={w} userId={userId} mod={mod} del={del} save={()=>saveData(widgets)} setInteractId={(id)=>interactingWidgetId.current=id} setTopZ={setTopZ} settings={settings} setSettings={setSettings} />
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  /********** Tool button **********/
+  const ToolBtn = ({ label, color, onClick }) => (
+    <button onClick={onClick} style={{ width:36, height:36, borderRadius:6, border:`1px solid ${color.border}`, color: color.text, background:'transparent', display:'flex', alignItems:'center', justifyContent:'center', fontSize:11 }}>
+      {label}
+    </button>
+  );
+
+  /********** Widget Component (handles all widget types) **********/
+  const Widget = ({ data, userId, mod, del, save, setInteractId, setTopZ, settings, setSettings }) => {
+    const [dragging, setDragging] = useState(false);
+    const offset = useRef({x:0,y:0});
+    const posRef = useRef({x:data.x,y:data.y});
+    const ref = useRef(null);
+    const [localData, setLocalData] = useState(data);
+    const [stream, setStream] = useState(null);
+    const savedNoteTimer = useRef(null);
+    const [micOn, setMicOn] = useState(true);
+    const [videoMuted, setVideoMuted] = useState(false);
+
+    useEffect(() => {
+      setLocalData(data);
+      posRef.current = { x:data.x, y:data.y };
+      if (ref.current) {
+        ref.current.style.left = data.x + 'px';
+        ref.current.style.top = data.y + 'px';
+        ref.current.style.width = data.w + 'px';
+        ref.current.style.height = data.h + 'px';
+        ref.current.style.zIndex = data.z;
+      }
+    }, [data.x, data.y, data.w, data.h, data.z]);
+
+    useEffect(()=> {
+      return ()=> {
+        if (stream && stream.getTracks) stream.getTracks().forEach(t=>t.stop());
+      };
+    }, [stream]);
+
+    const onStart = (e) => {
+      if (['INPUT','TEXTAREA','BUTTON','SELECT'].includes(e.target.tagName)) return;
+      setInteractId(data.id);
+      setDragging(true);
+      setTopZ(z=>{ const nz = z+1; mod(data.id,{z:nz}); return nz; });
+      const clientX = e.clientX || (e.touches && e.touches[0] && e.touches[0].clientX);
+      const clientY = e.clientY || (e.touches && e.touches[0] && e.touches[0].clientY);
+      offset.current = { x: clientX - posRef.current.x, y: clientY - posRef.current.y };
+    };
+
+    useEffect(()=> {
+      const move = (e) => {
+        if (!dragging) return;
+        const clientX = e.clientX || (e.touches && e.touches[0] && e.touches[0].clientX);
+        const clientY = e.clientY || (e.touches && e.touches[0] && e.touches[0].clientY);
+        const nx = clientX - offset.current.x;
+        const ny = clientY - offset.current.y;
+        posRef.current = { x:nx, y:ny };
+        if (ref.current) { ref.current.style.left = nx + 'px'; ref.current.style.top = ny + 'px'; }
+      };
+      const up = () => {
+        if (dragging) {
+          setDragging(false);
+          setInteractId(null);
+          // snap to grid on drop
+          const snapped = snapToGrid(posRef.current.x, posRef.current.y, 8);
+          mod(data.id, { x: snapped.x, y: snapped.y });
+          setTimeout(save, 60);
+        }
+      };
+      if (dragging) {
+        window.addEventListener('mousemove', move);
+        window.addEventListener('mouseup', up);
+        window.addEventListener('touchmove', move, { passive:false });
+        window.addEventListener('touchend', up);
+      }
+      return ()=> {
+        window.removeEventListener('mousemove', move);
+        window.removeEventListener('mouseup', up);
+        window.removeEventListener('touchmove', move);
+        window.removeEventListener('touchend', up);
+      };
+    }, [dragging]);
+
+    // helpers for chat messages/reactions
+    const sendChat = (text) => {
+      if (!text || text.trim()==='') return;
+      const now = Date.now();
+      const msg = { id: now.toString(), user: userId || 'anon', text: text, t: now, reactions: {} };
+      const next = Array.isArray(localData.d) ? [...localData.d, msg] : [msg];
+      setLocalData(ld=>({...ld, d: next }));
+      mod(data.id, { d: next });
+      save();
+      if (settings.sound) SFX.msg.play().catch(()=>{});
+    };
+
+    const addReaction = (msgId, emoji) => {
+      const msgs = Array.isArray(localData.d) ? [...localData.d] : [];
+      const idx = msgs.findIndex(m=>m.id===msgId);
+      if (idx === -1) return;
+      const m = msgs[idx];
+      m.reactions = m.reactions || {};
+      m.reactions[emoji] = (m.reactions[emoji] || 0) + 1;
+      msgs[idx] = m;
+      setLocalData(ld=>({...ld, d: msgs}));
+      mod(data.id, { d: msgs });
+      save();
+    };
+
+    const setNote = (val) => {
+      setLocalData(ld=>({...ld, d: val}));
+      mod(data.id, { d: val });
+      if (savedNoteTimer.current) clearTimeout(savedNoteTimer.current);
+      savedNoteTimer.current = setTimeout(()=> save(), 500);
+    };
+
+    // camera with mic
+    const startCam = async (withAudio=true) => {
+      try {
+        const s = await navigator.mediaDevices.getUserMedia({ video:true, audio:withAudio });
+        setStream(s);
+        const v = ref.current.querySelector('video');
+        if (v) v.srcObject = s;
+        // set mic state
+        setMicOn(withAudio);
+      } catch (e) { console.warn('camera error', e); }
+    };
+    const stopCam = () => {
+      if (stream && stream.getTracks) stream.getTracks().forEach(t=>t.stop());
+      setStream(null);
+      const v = ref.current.querySelector('video');
+      if (v) v.srcObject = null;
+    };
+    const toggleMute = () => {
+      if (!stream) return;
+      const audioTracks = stream.getAudioTracks();
+      if (!audioTracks || audioTracks.length===0) return;
+      const nowMuted = !audioTracks[0].enabled;
+      audioTracks.forEach(t=>t.enabled = nowMuted ? false : true);
+      setVideoMuted(nowMuted);
+    };
+    const toggleMic = async () => {
+      if (!stream) {
+        await startCam(true);
+        return;
+      }
+      const audioTracks = stream.getAudioTracks();
+      if (audioTracks && audioTracks.length>0) {
+        audioTracks.forEach(t=>t.enabled = !t.enabled);
+        setMicOn(audioTracks[0].enabled);
+      } else {
+        await startCam(true);
+      }
+    };
+
+    // theme management
+    const applyTheme = (themeKey) => {
+      const theme = CHAT_THEMES[themeKey];
+      setLocalData(ld => ({ ...ld, meta: { ...ld.meta, theme } }));
+      mod(data.id, { meta: { ...data.meta, theme } });
+      save();
+    };
+
+    const close = () => del(data.id);
+
+    // render types
+    const renderContent = () => {
+      const t = data.type;
+      const theme = (localData && localData.meta && localData.meta.theme) || CHAT_THEMES.void;
+      // chat / flash
+      if (t === 'chat' || t === 'flash') {
+        const msgs = Array.isArray(localData.d) ? localData.d : [];
+        return (
+          <div className="content" style={{ display:'flex', flexDirection:'column', height:'100%', padding:10, background: theme.bg, color: theme.color, backgroundSize:'cover', backgroundRepeat:'no-repeat' }}>
+            <div style={{ display:'flex', justifyContent:'space-between', gap:8, marginBottom:8 }}>
+              <div className="small">THEME: <strong style={{color:theme.color}}>{theme.name}</strong></div>
+              <div style={{display:'flex',gap:6}}>
+                {Object.keys(CHAT_THEMES).map(k => <div key={k} title={CHAT_THEMES[k].name} className="theme-swatch" onClick={()=>applyTheme(k)} style={{background:CHAT_THEMES[k].bg, border: (CHAT_THEMES[k].name===theme.name)?'2px solid rgba(0,255,65,0.3)':'1px solid rgba(255,255,255,0.04)'}}></div>)}
+              </div>
+            </div>
+            <div style={{flex:1, overflowY:'auto', paddingRight:6}}>
+              {msgs.map(m => (
+                <div key={m.id} className="chat-msg">
+                  <div style={{display:'flex', justifyContent:'space-between', gap:8}}>
+                    <div style={{fontSize:11, opacity:0.9}}>{m.user}</div>
+                    <div style={{fontSize:10, opacity:0.6}}>{new Date(m.t).toLocaleTimeString()}</div>
+                  </div>
+                  <div style={{marginTop:6}}>{m.text}</div>
+                  <div style={{display:'flex', gap:8, marginTop:6, alignItems:'center'}}>
+                    {['👍','🔥','👀','😂','⚡'].map(e => <div key={e} className="reaction" onClick={()=>addReaction(m.id,e)}>{e} {m.reactions && m.reactions[e] ? m.reactions[e] : ''}</div>)}
+                  </div>
                 </div>
-            );
+              ))}
+            </div>
+            <div style={{marginTop:8}}>
+              <ChatInput onSend={sendChat} placeholder="Send a message..." />
+            </div>
+          </div>
+        );
+      }
 
-            return (
-                <div className="h-screen bg-black text-green-500 relative overflow-hidden crt">
-                    <div className="scanline"></div>
-                    <div className="absolute top-0 w-full h-10 border-b border-green-900 bg-black/90 flex items-center justify-between px-4 z-50">
-                        <div className="text-xs flex gap-2 items-center"><span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span> {docId?.substring(0,6)}</div>
-                        <button onClick={handleNuke} className="text-[10px] text-red-500 border border-red-900 px-2 hover:bg-red-900/20">NUKE</button>
-                    </div>
-                    <div className="absolute left-0 top-10 bottom-0 w-10 border-r border-green-900 bg-black/90 z-40 flex flex-col items-center py-4 gap-2">
-                        <Btn t="CHAT" c="green" fn={()=>add('chat')} />
-                        <Btn t="FLSH" c="yellow" fn={()=>add('flash')} />
-                        <Btn t="VOX" c="blue" fn={()=>add('comm')} />
-                        <Btn t="CAM" c="red" fn={()=>add('cam')} />
-                        <Btn t="NOTE" c="green" fn={()=>add('note')} />
-                    </div>
-                    <div className="absolute inset-0 top-10 left-10">
-                        {widgets.map(w => (
-                            <Widget 
-                                key={w.id} 
-                                data={w} 
-                                userId={userId} 
-                                mod={mod} 
-                                del={del} 
-                                setInteract={(val) => isInteracting.current = val}
-                                setTopZ={setTopZ}
-                            />
-                        ))}
-                    </div>
-                </div>
-            );
-        };
+      // note
+      if (t === 'note') {
+        return (
+          <div className="content" style={{display:'flex',flexDirection:'column',height:'100%'}}>
+            <textarea value={localData.d || ''} onChange={(e)=>setNote(e.target.value)} placeholder="New note..." style={{ width:'100%', height:'100%', background:'transparent', color:'#b6ffb6', border:'1px solid rgba(0,255,65,0.04)', padding:6, resize:'none', borderRadius:6 }} />
+          </div>
+        );
+      }
 
-        const Btn = ({ t, c, fn }) => <button onClick={fn} className={`w-8 h-8 flex items-center justify-center text-[8px] border border-${c}-900 text-${c}-500 hover:bg-${c}-900/20`}>{t}</button>;
+      // cam/video widget (voice enabled)
+      if (t === 'cam' || t === 'video') {
+        return (
+          <div className="content" style={{display:'flex',flexDirection:'column',gap:8}}>
+            <video autoPlay playsInline muted={false} style={{width:'100%',height:'160px',background:'#111',borderRadius:6}}></video>
+            <div style={{display:'flex',gap:8}}>
+              {!stream ? <button className="btn-ghost" onClick={()=>startCam(true)}>START (AUDIO+VIDEO)</button> : <button className="btn-ghost" onClick={stopCam}>STOP</button>}
+              <button className="btn-ghost" onClick={toggleMic}>{micOn? 'MIC ON' : 'MIC OFF'}</button>
+              <button className="btn-ghost" onClick={toggleMute}>{videoMuted? 'UNMUTE' : 'MUTE'}</button>
+              <div style={{marginLeft:'auto'}} className={stream && (!micOn || videoMuted) ? 'muted-badge' : ''}>{stream ? (micOn ? (videoMuted ? 'AUDIO MUTED' : 'LIVE') : 'MIC OFF') : 'IDLE'}</div>
+            </div>
+          </div>
+        );
+      }
 
-        const Widget = ({ data, userId, mod, del, setInteract, setTopZ }) => {
-            const [drag, setDrag] = useState(false);
-            const offset = useRef({x:0,y:0});
-            const currentPos = useRef({x: data.x, y: data.y});
-            const cardRef = useRef(null);
-            
-            const [input, setInput] = useState('');
-            const [stream, setStream] = useState(false);
-            const [isTalk, setIsTalk] = useState(false);
-            const vid = useRef(null);
+      // comm (voice-style chat - text fallback)
+      if (t === 'comm') {
+        const msgs = Array.isArray(localData.d)?localData.d:[];
+        return (
+          <div className="content" style={{display:'flex',flexDirection:'column',height:'100%'}}>
+            <div style={{flex:1,overflowY:'auto',marginBottom:8}}>
+              {msgs.map(m=>(<div key={m.id} className="chat-msg">{m.user}<div style={{marginTop:6}}>{m.text}</div></div>))}
+            </div>
+            <ChatInput onSend={sendChat} placeholder="Send vox..." />
+          </div>
+        );
+      }
 
-            // Sync external updates ONLY if not dragging
-            useEffect(() => {
-                if (!drag && cardRef.current) {
-                    currentPos.current = {x: data.x, y: data.y};
-                    cardRef.current.style.left = data.x + 'px';
-                    cardRef.current.style.top = data.y + 'px';
-                }
-            }, [data.x, data.y, drag]);
+      // settings widget
+      if (t === 'settings') {
+        return (
+          <div className="content" style={{display:'flex',flexDirection:'column',gap:10}}>
+            <div style={{display:'flex',gap:10,alignItems:'center'}}>
+              <label className="small"><input type="checkbox" checked={settings.sound} onChange={e => setSettings(s=>({...s, sound:e.target.checked}))} /> Sound</label>
+              <label className="small"><input type="checkbox" checked={settings.flicker} onChange={e => setSettings(s=>({...s, flicker:e.target.checked}))} /> Flicker</label>
+              <label className="small"><input type="checkbox" checked={settings.scanlines} onChange={e => setSettings(s=>({...s, scanlines:e.target.checked}))} /> Scanlines</label>
+            </div>
+            <div className="small">Quick controls and room settings live here. Changes apply locally — broadcast them by saving the room.</div>
+            <div style={{display:'flex',gap:8}}>
+              <button className="btn-ghost" onClick={()=>save()}>SAVE ROOM</button>
+              <button className="btn-ghost" onClick={()=>{ navigator.clipboard && navigator.clipboard.writeText(window.location.href) }}>COPY LINK</button>
+            </div>
+          </div>
+        );
+      }
 
-            const startDrag = (e) => {
-                if(['INPUT','TEXTAREA','BUTTON'].includes(e.target.tagName)) return;
-                setInteract(true);
-                setDrag(true);
-                setTopZ(z => { const nz=z+1; mod(data.id, {z:nz}, false); return nz; }); 
-                
-                const clientX = e.clientX || e.touches[0].clientX;
-                const clientY = e.clientY || e.touches[0].clientY;
-                offset.current = { 
-                    x: clientX - currentPos.current.x, 
-                    y: clientY - currentPos.current.y 
-                };
-            };
+      // fallback
+      return <div className="content">Unknown widget type.</div>;
+    };
 
-            useEffect(() => {
-                const move = (e) => {
-                    if (!drag) return;
-                    const clientX = e.clientX || e.touches[0].clientX;
-                    const clientY = e.clientY || e.touches[0].clientY;
-                    const newX = clientX - offset.current.x;
-                    const newY = clientY - offset.current.y;
-                    currentPos.current = {x: newX, y: newY};
-                    if(cardRef.current) {
-                        cardRef.current.style.left = newX + 'px';
-                        cardRef.current.style.top = newY + 'px';
-                    }
-                };
+    return (
+      <div ref={ref} className="widget" style={{ left: data.x + 'px', top: data.y + 'px', width: data.w + 'px', height: data.h + 'px', zIndex: data.z }}>
+        <div className="hdr" onMouseDown={onStart} onTouchStart={onStart}>
+          <div style={{display:'flex',gap:8,alignItems:'center'}}>
+            <div className="small">{data.type.toUpperCase()}</div>
+            <div style={{fontSize:11,opacity:0.6}}>{data.id.slice(-4)}</div>
+          </div>
+          <div style={{display:'flex',gap:6}}>
+            <button className="btn-ghost" onClick={()=>{ mod(data.id,{ w: Math.max(220, data.w-40) }); save(); }}>−</button>
+            <button className="btn-ghost" onClick={()=>{ mod(data.id,{ w: data.w+40 }); save(); }}>+</button>
+            <button className="btn-ghost" onClick={() => del(data.id)}>✕</button>
+          </div>
+        </div>
+        {renderContent()}
+      </div>
+    );
+  };
 
-                const up = () => {
-                    if (drag) {
-                        setDrag(false);
-                        setInteract(false);
-                        // PERSIST: Save final position to DB
-                        mod(data.id, { x: currentPos.current.x, y: currentPos.current.y }, true);
-                    }
-                };
+  // Simple Chat input
+  const ChatInput = ({ onSend, placeholder='send...' }) => {
+    const [val, setVal] = useState('');
+    const send = () => { if (!val.trim()) return; onSend(val.trim()); setVal(''); };
+    return (
+      <div style={{display:'flex',gap:8}}>
+        <input value={val} onChange={e=>setVal(e.target.value)} onKeyDown={e=>{ if (e.key==='Enter') send(); }} placeholder={placeholder} style={{flex:1,background:'transparent',border:'1px solid rgba(0,255,65,0.03)',padding:'8px 10px', color:'#b6ffb6', borderRadius:6}} />
+        <button className="btn-ghost" onClick={send}>SEND</button>
+      </div>
+    );
+  };
 
-                if (drag) {
-                    window.addEventListener('mousemove', move); window.addEventListener('mouseup', up);
-                    window.addEventListener('touchmove', move); window.addEventListener('touchend', up);
-                }
-                return () => { 
-                    window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', up);
-                    window.removeEventListener('touchmove', move); window.removeEventListener('touchend', up);
-                };
-            }, [drag]);
-
-            // Cam Logic
-            useEffect(() => {
-                let i;
-                if (stream && vid.current) {
-                    i = setInterval(() => {
-                        const cvs = document.createElement('canvas'); cvs.width=160; cvs.height=120;
-                        cvs.getContext('2d').drawImage(vid.current,0,0,160,120);
-                        mod(data.id, { d: cvs.toDataURL('image/jpeg', 0.4) }, Math.random()>0.7); // Throttled save
-                    }, 500);
-                }
-                return () => clearInterval(i);
-            }, [stream]);
-
-            // Logic Renderers
-            const renderContent = () => {
-                if(data.type === 'note') return <textarea className="w-full h-full bg-transparent text-green-400 p-2 text-xs outline-none resize-none" value={data.d} onChange={e=>mod(data.id,{d:e.target.value}, false)} onBlur={()=>mod(data.id, {d:data.d}, true)} placeholder="DATA..." />;
-                if(data.type === 'chat' || data.type === 'flash') return (
-                    <div className="flex flex-col h-full">
-                        <div className="flex-1 overflow-y-auto p-2 space-y-1 bg-black/50">
-                            {(Array.isArray(data.d)?data.d:[]).map(m=><div key={m.id} className="text-[10px] break-words"><span className="text-gray-500">[{m.time}]</span> <span className="text-green-600">{m.user}:</span> <span className={data.type==='flash'?'text-yellow-500':'text-green-400'}>{m.text}</span></div>)}
-                        </div>
-                        <form onSubmit={e=>{
-                            e.preventDefault(); if(!input.trim())return;
-                            const msg = {id:Date.now(), user:userId, text:input, time:new Date().toLocaleTimeString()};
-                            let next = [...(Array.isArray(data.d)?data.d:[]), msg];
-                            if(data.type === 'flash' && next.length > 5) next = next.slice(next.length-5); // Keep last 5
-                            mod(data.id, {d:next}, true); setInput(''); 
-                        }} className="border-t border-green-800 flex"><input className="flex-1 bg-black text-xs p-1 outline-none text-green-400" value={input} onChange={e=>setInput(e.target.value)} /><button className="px-2 text-[10px] bg-green-900/30 text-green-400">></button></form>
-                    </div>
-                );
-                if(data.type === 'cam') return <div className="h-full bg-black flex flex-col">{stream && <video ref={vid} autoPlay playsInline muted className="hidden" />}{stream || data.d ? <img src={data.d} className="flex-1 object-cover opacity-80" /> : <div className="flex-1 flex items-center justify-center text-xs text-red-500">NO SIGNAL</div>}<button onClick={async ()=>{
-                    if(stream){setStream(false);mod(data.id,{d:null},true);}else{try{const s=await navigator.mediaDevices.getUserMedia({video:{width:160,height:120}});vid.current.srcObject=s;setStream(true);}catch{alert('ERR');}}
-                }} className="bg-red-900/30 text-red-500 text-[10px] py-1">{stream?'STOP':'START'}</button></div>;
-                if(data.type === 'comm') return <div className="h-full flex items-center justify-center flex-col"><div className="flex gap-1 h-4 items-end mb-2">{[1,2,3].map(i=><div key={i} className={`w-1 bg-green-500 ${isTalk?'animate-pulse':''}`} style={{height:isTalk?'100%':'20%'}}></div>)}</div><button onClick={async ()=>{
-                    if(isTalk){setIsTalk(false);return;}
-                    try{
-                        const s = await navigator.mediaDevices.getUserMedia({audio:true});
-                        setIsTalk(true);
-                        const r = new MediaRecorder(s);
-                        r.ondataavailable=e=>{const rd=new FileReader();rd.readAsDataURL(e.data);rd.onloadend=()=>{
-                            const old = typeof data.d==='object'?data.d:{};
-                            mod(data.id,{d:{...old,[userId]:{b:rd.result,t:Date.now()}}}, true);
-                        }};
-                        r.start(2000);
-                    }catch{alert('ERR');}
-                }} className={`border px-3 py-1 rounded-full text-[10px] ${isTalk?'border-red-500 text-red-500':'border-green-500 text-green-500'}`}>{isTalk?'TX ON':'ENABLE'}</button></div>;
-            };
-
-            // Audio Player Hook
-            useEffect(() => {
-                if(data.type!=='comm' || !data.d) return;
-                Object.keys(data.d).forEach(u => {
-                    if(u === userId) return;
-                    if(data.d[u].t > (window['last_play_'+u] || 0)) {
-                        window['last_play_'+u] = data.d[u].t;
-                        new Audio(data.d[u].b).play().catch(e=>{});
-                    }
-                });
-            }, [data.d]);
-
-            const colors = { chat:'green', flash:'yellow', note:'blue', cam:'red', comm:'green' };
-            const c = colors[data.type];
-
-            return (
-                <div 
-                    ref={cardRef}
-                    className={`absolute flex flex-col bg-black/95 border border-${c}-600 shadow-[0_0_10px_${c}]`}
-                    style={{ left: data.x, top: data.y, width: data.w, height: data.h, zIndex: data.z }}
-                    onMouseDown={startDrag} onTouchStart={startDrag}
-                >
-                    <div className={`bg-${c}-900/20 border-b border-${c}-800 p-1 flex justify-between items-center cursor-move select-none`}>
-                        <span className={`text-[10px] font-bold text-${c}-500 uppercase tracking-widest`}>{data.type}</span>
-                        <button onClick={()=>del(data.id)} className={`text-${c}-700 hover:text-red-500 px-2 font-bold`}>×</button>
-                    </div>
-                    {renderContent()}
-                </div>
-            );
-        };
-
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
-    </script>
+  /********** Render **********/
+  ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
 </body>
 </html>
