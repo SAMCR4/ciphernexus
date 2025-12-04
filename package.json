@@ -1,0 +1,13 @@
+{
+  "name": "ciphernexus",
+  "version": "1.0.0",
+  "scripts": {
+    "minify": "terser src/**/*.js -c -m -o dist/bundle.min.js",
+    "obfuscate": "javascript-obfuscator dist/bundle.min.js --output dist/bundle.obf.js --compact true --selfDefending true --stringArray true",
+    "build": "npm run minify && npm run obfuscate && node tools/update-loader.js"
+  },
+  "devDependencies": {
+    "terser": "^5.27.0",
+    "javascript-obfuscator": "^4.1.0"
+  }
+}

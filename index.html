@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CipherNexus — Static</title>
+  <link rel="icon" href="./public/favicon.ico" />
+  <style>
+    body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; margin:0; padding:16px; background:#0f172a; color:#e6eef8; }
+    main { max-width:900px; margin:24px auto; }
+    .card { background:#071024; padding:16px; border-radius:8px; box-shadow: 0 6px 18px rgba(2,6,23,0.6); }
+    input, button, textarea { font:inherit; padding:8px; border-radius:6px; border:1px solid rgba(255,255,255,0.06); background:transparent; color:inherit; }
+    .row { display:flex; gap:8px; margin-top:8px; }
+    label { font-size:13px; color:#9fb0d9 }
+    pre { background:#021022; padding:12px; border-radius:6px; overflow:auto; }
+  </style>
+</head>
+<body>
+<div id="qr-modal" 
+style="
+  position:fixed;top:0;left:0;width:100%;height:100%;
+  backdrop-filter:blur(12px);
+  background:rgba(0,0,0,0.35);
+  display:none;align-items:center;justify-content:center;
+  animation:fadeIn 0.3s ease;
+">
+  <div id="qr-card" style="
+    width:320px;height:420px;background:rgba(255,255,255,0.15);
+    border-radius:20px;backdrop-filter:blur(20px);
+    padding:20px;color:white;text-align:center;
+    animation:scaleIn 0.25s ease;
+  ">
+    <h2>Scan QR Code</h2>
+    <video id="qr-video" style="width:100%;border-radius:12px;"></video>
+    <div id="qr-status" style="margin-top:10px;font-size:14px;opacity:0.8;">Initializing…</div>
+  </div>
+</div>
+
+<style>
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes scaleIn{from{transform:scale(0.85)}to{transform:scale(1)}}
+</style>
+
+  <main>
+<!-- Polished UI Additions -->
+<style>
+/* Polished card layout and animated progress */
+.cnx-ui { max-width: 900px; margin: 18px auto; font-family: system-ui, -apple-system, 'Segoe UI', Roboto; }
+.cnx-card { background: linear-gradient(135deg,#071024 0%, #08132a 100%); padding:18px; border-radius:12px; box-shadow:0 8px 30px rgba(2,6,23,0.6); color:#dceefb; }
+.cnx-row{display:flex;gap:8px;align-items:center;margin-top:8px;}
+.cnx-label{font-size:13px;color:#9fb0d9;}
+#dropZone{border:2px dashed rgba(255,255,255,0.06); padding:20px; border-radius:8px; text-align:center; transition:background .2s, border-color .2s; cursor:pointer;}
+#dropZone.dragover{background:rgba(255,255,255,0.02); border-color:rgba(99,102,241,0.6);}
+.progress-wrap{margin-top:12px;background:rgba(255,255,255,0.02); padding:8px;border-radius:8px;overflow:hidden;}
+.progress-bar{height:12px;background:linear-gradient(90deg,#22c55e,#06b6d4); width:0%; border-radius:6px; transition: width .35s ease; box-shadow:0 4px 12px rgba(6,9,16,0.6);}
+.small{font-size:12px;color:#a6c0e8;}
+.button{background:#0ea5e9;border:none;padding:8px 12px;border-radius:8px;color:#042a3a; cursor:pointer;font-weight:600;}
+.button.ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);color:inherit;}
+#qrCanvas{width:160px;height:160px;background:#021022;border-radius:8px;padding:6px;}
+</style>
+
+<div class="cnx-ui">
+  <div class="cnx-card">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <h2 style="margin:0">CipherNexus — Secure Files</h2>
+      <div style="text-align:right">
+        <button id="exportKeyBtn" class="button">Export Key</button>
+        <button id="importKeyBtn" class="button ghost">Import Key</button>
+        <input id="importKeyFile" type="file" accept="text/*" style="display:none" />
+      </div>
+    </div>
+
+    <div style="margin-top:12px" class="small">Drag & drop files to encrypt & send to peers, or click the area to choose files.</div>
+    <div id="dropZone" tabindex="0" role="button" aria-label="Drop files here">Drop files here or click to select</div>
+
+    <div class="progress-wrap" style="display:none" id="fileProgressWrap">
+      <div id="fileProgressLabel" class="small">Preparing…</div>
+      <div style="height:8px;background:rgba(255,255,255,0.03);border-radius:6px;margin-top:8px;overflow:hidden;">
+        <div id="fileProgressBar" class="progress-bar"></div>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:12px;margin-top:12px;align-items:center">
+      <div>
+        <div class="cnx-label">Session link (URL-safe)</div>
+        <input id="sessionLink" readonly style="width:420px;padding:8px;border-radius:6px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit" />
+      </div>
+      <div style="text-align:center">
+        <div class="cnx-label">Session QR</div>
+        <canvas id="qrCanvas" title="QR code (session)"></canvas>
+        <div style="margin-top:8px"><button id="copySessionBtn" class="button ghost">Copy</button></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+<!-- End Polished UI Additions -->
+
+    <h1>CipherNexus — Static (GitHub Pages)</h1>
+    <div class="card">
+      <label>Room code / Password</label>
+      <div class="row"><input id="roomCode" placeholder="Type a room code / password" /><button id="deriveBtn">Derive & Test</button></div>
+      <label>Plaintext</label>
+      <div class="row"><textarea id="plaintext" rows="4" style="flex:1"></textarea></div>
+      <div class="row"><button id="encryptBtn">Encrypt (AES-GCM)</button><button id="decryptBtn">Decrypt</button></div>
+      <label>Result</label>
+      <pre id="result">No operations yet.</pre>
+    </div>
+    <p style="font-size:13px;color:#9fb0d9">This static build loads Argon2 from a CDN and performs client-side encryption (Argon2 -> HKDF -> AES-GCM). Files are prepared to run on GitHub Pages without a build step.</p>
+  </main>
+
+  <script type="module" src="/dist/loader.js"></script>
+
+<!-- QR Scan Modal -->
+<div id="qrScanModal" style="display:none; position:fixed; inset:0; background:#0009; backdrop-filter:blur(4px); justify-content:center; align-items:center; z-index:9999;">
+  <div style="background:#0a0f1c; padding:20px; border-radius:10px; width:320px; color:white; text-align:center;">
+    <h3>Scan QR to Join Session</h3>
+    <video id="qrVideo" width="260" height="200" autoplay playsinline style="background:#111;border-radius:8px;"></video>
+    <div style="margin-top:10px;">
+      <button id="qrScanStop" class="button ghost">Stop</button>
+      <button id="qrScanImage" class="button">Scan Image</button>
+      <input id="qrImageFile" type="file" accept="image/*" style="display:none"/>
+    </div>
+    <div id="qrScanStatus" style="margin-top:10px;font-size:12px;color:#9fc4ff;"></div>
+  </div>
+</div>
+
+
+<div id="qr-modal" style="display:none;"></div>
+
+<div id="qr-create-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%;
+backdrop-filter:blur(12px); background:rgba(0,0,0,0.45); align-items:center; justify-content:center;">
+  <div style="background:rgba(255,255,255,0.12); border-radius:16px; padding:20px; width:320px;">
+    <h2 style="color:white; text-align:center;">Session QR</h2>
+    <div id="qr-output" style="margin-top:15px;"></div>
+    <p style="text-align:center; color:white; opacity:0.8;">Signed + Compressed</p>
+  </div>
+</div>
+
+</body>
+
+</html>
