@@ -1,0 +1,1 @@
+(function(){var s=document.createElement('script');s.type='module';s.textContent="import './bundle.min.js';";document.head.appendChild(s);})();
