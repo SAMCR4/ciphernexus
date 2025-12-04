@@ -36,6 +36,30 @@ function renderRealQR(qrStr){
 }
 /* --- END QR --- */
 
+
+// --- AES Key Export/Import ---
+async function exportAESKey(){
+    if(!window.__CIPHERNEXUS_AES_KEY){ alert("No AES key."); return; }
+    const raw=await crypto.subtle.exportKey("raw", window.__CIPHERNEXUS_AES_KEY);
+    const arr=new Uint8Array(raw);
+    const b64=btoa(String.fromCharCode(...arr));
+    const blob=new Blob([b64],{type:"text/plain"});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement("a");
+    a.href=url; a.download="ciphernexus-key.txt"; a.click();
+    URL.revokeObjectURL(url);
+}
+async function importAESKeyFromFile(file){
+    const text=await file.text();
+    const bytes=Uint8Array.from(atob(text.trim()),c=>c.charCodeAt(0));
+    const key=await crypto.subtle.importKey(
+        "raw",bytes,{name:"AES-GCM"},true,["encrypt","decrypt"]
+    );
+    window.__CIPHERNEXUS_AES_KEY=key;
+    console.log("AES key imported");
+}
+// --- END AES Key Export/Import ---
+
 import * as cryptoMod from './crypto.js';
 
 const $ = (id)=>document.getElementById(id);
@@ -96,8 +120,8 @@ decryptBtn.addEventListener('click', async ()=>{
 
 
 // --- UI integration: export/import keys, drag-drop, session export, QR render ---
-async function exportAESKey(){ try{ if(!window.__CIPHERNEXUS_AES_KEY){ alert('No key derived'); return; } const raw = await crypto.subtle.exportKey('raw', window.__CIPHERNEXUS_AES_KEY); const b64 = btoa(String.fromCharCode(...new Uint8Array(raw))); const blob = new Blob([b64],{type:'text/plain'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='ciphernexus-key.txt'; a.click(); URL.revokeObjectURL(url); }catch(e){console.error(e)} }
-async function importAESKeyFromFile(file){ try{ const text = await file.text(); const bytes = Uint8Array.from(atob(text.trim()), c=>c.charCodeAt(0)); const key = await crypto.subtle.importKey('raw', bytes, {name:'AES-GCM'}, true, ['encrypt','decrypt']); window.__CIPHERNEXUS_AES_KEY = key; alert('Key imported'); }catch(e){console.error(e); alert('Import failed') } }
+ const raw = await crypto.subtle.exportKey('raw', window.__CIPHERNEXUS_AES_KEY); const b64 = btoa(String.fromCharCode(...new Uint8Array(raw))); const blob = new Blob([b64],{type:'text/plain'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='ciphernexus-key.txt'; a.click(); URL.revokeObjectURL(url); }catch(e){console.error(e)} }
+, true, ['encrypt','decrypt']); window.__CIPHERNEXUS_AES_KEY = key; alert('Key imported'); }catch(e){console.error(e); alert('Import failed') } }
 
 function base64UrlEncode(bytes){ const b64 = btoa(String.fromCharCode(...new Uint8Array(bytes))); return b64.replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,''); }
 function base64UrlDecode(b64u){ b64u = b64u.replace(/-/g,'+').replace(/_/g,'/'); while(b64u.length%4) b64u += '='; const str = atob(b64u); return Uint8Array.from(str, c=>c.charCodeAt(0)); }
