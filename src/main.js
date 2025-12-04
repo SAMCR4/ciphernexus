@@ -36,30 +36,6 @@ function renderRealQR(qrStr){
 }
 /* --- END QR --- */
 
-
-// --- AES Key Export/Import ---
-async function exportAESKey(){
-    if(!window.__CIPHERNEXUS_AES_KEY){ alert("No AES key."); return; }
-    const raw=await crypto.subtle.exportKey("raw", window.__CIPHERNEXUS_AES_KEY);
-    const arr=new Uint8Array(raw);
-    const b64=btoa(String.fromCharCode(...arr));
-    const blob=new Blob([b64],{type:"text/plain"});
-    const url=URL.createObjectURL(blob);
-    const a=document.createElement("a");
-    a.href=url; a.download="ciphernexus-key.txt"; a.click();
-    URL.revokeObjectURL(url);
-}
-async function importAESKeyFromFile(file){
-    const text=await file.text();
-    const bytes=Uint8Array.from(atob(text.trim()),c=>c.charCodeAt(0));
-    const key=await crypto.subtle.importKey(
-        "raw",bytes,{name:"AES-GCM"},true,["encrypt","decrypt"]
-    );
-    window.__CIPHERNEXUS_AES_KEY=key;
-    console.log("AES key imported");
-}
-// --- END AES Key Export/Import ---
-
 import * as cryptoMod from './crypto.js';
 
 const $ = (id)=>document.getElementById(id);
