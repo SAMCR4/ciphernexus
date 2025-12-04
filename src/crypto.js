@@ -1,4 +1,4 @@
-import argon2 from 'argon2-browser'
+import argon2 from './lib/argon2-browser/argon2-bundled.min.js';
 
 export async function sha256Hex(s){
   const enc = new TextEncoder().encode(s);
