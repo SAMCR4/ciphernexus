@@ -1,0 +1,148 @@
+
+
+
+/* === B1 Loading Screen Styles === */
+#cn-loading-screen {
+    position:fixed; inset:0;
+    background:rgba(15,15,20,0.9);
+    backdrop-filter:blur(8px);
+    display:flex; flex-direction:column;
+    align-items:center; justify-content:center;
+    z-index:9999; transition:opacity .6s ease;
+}
+.cn-loader-spinner{
+    width:64px; height:64px;
+    border:6px solid #444;
+    border-top-color:#0af;
+    border-radius:50%;
+    animation:spin 1s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+.cn-loader-text{color:#fff; margin-top:18px; font-size:1.1rem; letter-spacing:1px;}
+
+
+
+/* === B2: Animated transitions layer === */
+
+/* Generic fade-in */
+.cn-fade-in {
+    opacity:0;
+    animation: cnFadeIn .6s forwards ease;
+}
+@keyframes cnFadeIn {
+    from {opacity:0;}
+    to {opacity:1;}
+}
+
+/* Slide up */
+.cn-slide-up {
+    transform: translateY(20px);
+    opacity:0;
+    animation: cnSlideUp .5s forwards ease-out;
+}
+@keyframes cnSlideUp {
+    to {transform: translateY(0); opacity:1;}
+}
+
+/* Pop-in */
+.cn-pop {
+    transform: scale(.8);
+    opacity:0;
+    animation: cnPopIn .35s forwards cubic-bezier(.16,.8,.44,1);
+}
+@keyframes cnPopIn {
+    to {transform: scale(1); opacity:1;}
+}
+
+/* Button hover glow */
+button:hover {
+    filter: drop-shadow(0 0 6px #0af);
+    transition: filter .25s ease;
+}
+
+/* Modal transitions */
+.cn-modal {
+    opacity:0;
+    transform: scale(.9);
+    transition: opacity .3s ease, transform .3s ease;
+}
+.cn-modal.active {
+    opacity:1;
+    transform: scale(1);
+}
+
+/* Message bubble animated entry */
+.message-bubble {
+    opacity:0;
+    animation: cnBubbleIn .45s forwards ease-out;
+}
+@keyframes cnBubbleIn {
+    from {opacity:0; transform: translateY(10px);}
+    to {opacity:1; transform: translateY(0);}
+}
+
+
+
+/* === B3: Theme Engine Variables === */
+:root{
+  --bg: #021021;
+  --card: #072032;
+  --text: #dfefff;
+  --accent: #46d;
+  --muted: rgba(255,255,255,0.06);
+  --glass: rgba(255,255,255,0.04);
+  --shadow: 0 6px 18px rgba(0,0,0,0.6);
+  --transition-fast: 180ms;
+  --transition-medium: 350ms;
+}
+
+/* Theme: dark (default) */
+.theme-dark { --bg:#021021; --card:#072032; --text:#dfefff; --accent:#46d; --glass: rgba(255,255,255,0.03); }
+
+/* Theme: neon */
+.theme-neon { --bg: linear-gradient(135deg,#050013,#001029); --card:#0b0920; --text:#f0f4ff; --accent:#7af; --glass: rgba(255,255,255,0.02); }
+
+/* Theme: high contrast */
+.theme-highcontrast { --bg:#000000; --card:#0f0f0f; --text:#ffffff; --accent:#00ff7f; --glass: rgba(255,255,255,0.06); }
+
+/* Apply variables */
+body, .app-shell {
+  background: var(--bg);
+  color: var(--text);
+  transition: background var(--transition-medium) ease, color var(--transition-medium) ease;
+}
+
+.sidebar, .card, .controls {
+  background: var(--card);
+  transition: background var(--transition-fast) ease, box-shadow var(--transition-fast) ease;
+  box-shadow: var(--shadow);
+}
+
+.button, button {
+  background: transparent;
+  border: 1px solid var(--glass);
+  color: var(--text);
+  transition: box-shadow var(--transition-fast) ease, transform var(--transition-fast) ease;
+}
+
+.button:hover, button:hover { box-shadow: 0 8px 30px rgba(0,0,0,0.6), 0 0 8px var(--accent); transform: translateY(-1px); }
+
+/* Smooth theme transition overlay */
+.theme-transition-overlay {
+  position:fixed; inset:0; pointer-events:none; opacity:0; transition:opacity .45s ease;
+  background: linear-gradient(120deg, rgba(255,255,255,0.02), rgba(0,0,0,0.02));
+  z-index:9998;
+}
+.theme-transition-overlay.active { opacity:1; }
+
+
+
+
+/* Multi-peer grid */
+#videoGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;padding:8px}
+.video-box{position:relative;background:#000;border-radius:10px;overflow:hidden;min-height:140px}
+.video-box video{width:100%;height:100%;object-fit:cover}
+
+/* draggable video windows */
+.video-box{cursor:grab}
+.video-box:active{cursor:grabbing}
