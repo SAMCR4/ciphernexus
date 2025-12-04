@@ -1,13 +1,15 @@
 {
   "name": "ciphernexus",
   "version": "1.0.0",
+  "type": "module",
   "scripts": {
-    "minify": "terser src/**/*.js -c -m -o dist/bundle.min.js",
-    "obfuscate": "javascript-obfuscator dist/bundle.min.js --output dist/bundle.obf.js --compact true --selfDefending true --stringArray true",
-    "build": "npm run minify && npm run obfuscate && node tools/update-loader.js"
+    "build": "npm run minify && npm run obfuscate && npm run finalize",
+    "minify": "terser src/main.js -c -m -o src/main.t.min.js && terser src/crypto.js -c -m -o src/crypto.t.min.js && terser src/fileTransfer.js -c -m -o src/fileTransfer.t.min.js && terser src/webrtc.js -c -m -o src/webrtc.t.min.js",
+    "obfuscate": "javascript-obfuscator src/main.t.min.js --output src/main.min.js --compact true --controlFlowFlattening true --stringArray true --stringArrayThreshold 1 --selfDefending true && javascript-obfuscator src/crypto.t.min.js --output src/crypto.min.js --compact true --controlFlowFlattening true --stringArray true --stringArrayThreshold 1 --selfDefending true && javascript-obfuscator src/fileTransfer.t.min.js --output src/fileTransfer.min.js --compact true --controlFlowFlattening true --stringArray true --stringArrayThreshold 1 --selfDefending true && javascript-obfuscator src/webrtc.t.min.js --output src/webrtc.min.js --compact true --controlFlowFlattening true --stringArray true --stringArrayThreshold 1 --selfDefending true",
+    "finalize": "node tools/patch-index.mjs"
   },
   "devDependencies": {
-    "terser": "^5.27.0",
-    "javascript-obfuscator": "^4.1.0"
+    "terser": "^5.26.0",
+    "javascript-obfuscator": "^4.1.1"
   }
 }
