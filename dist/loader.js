@@ -1,1 +1,0 @@
-(function(){var s=document.createElement('script');s.src='./dist/bundle.min.js';s.async=false;document.head.appendChild(s);})();
