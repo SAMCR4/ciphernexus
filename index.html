@@ -1,360 +1,1823 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>CipherNexus — Static</title>
-  <link rel="icon" href="./public/favicon.ico" />
-  <style>
-    body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; margin:0; padding:16px; background:#0f172a; color:#e6eef8; }
-    main { max-width:900px; margin:24px auto; }
-    .card { background:#071024; padding:16px; border-radius:8px; box-shadow: 0 6px 18px rgba(2,6,23,0.6); }
-    input, button, textarea { font:inherit; padding:8px; border-radius:6px; border:1px solid rgba(255,255,255,0.06); background:transparent; color:inherit; }
-    .row { display:flex; gap:8px; margin-top:8px; }
-    label { font-size:13px; color:#9fb0d9 }
-    pre { background:#021022; padding:12px; border-radius:6px; overflow:auto; }
-  </style>
-
+<meta charset="UTF-8">
+<title>ULTRA Chat</title>
 <style>
-/* Progress bar and better loader */
-#cn-progress{width:360px;height:8px;background:rgba(255,255,255,0.06);border-radius:8px;margin-top:12px;overflow:hidden}
-#cn-progress > i{display:block;height:100%;width:0%;background:linear-gradient(90deg,#6af,#3cf);border-radius:8px;transition:width 400ms ease}
-.cn-loading-title{font-size:18px;margin-bottom:8px;font-weight:700;color:linear-gradient(90deg,#7af,#4df)}
+  html, body { margin:0; padding:0; height:100%; width:100%; overflow:hidden; background:#000; font-family:sans-serif; color:#eee;}
+  #enterRoom { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); text-align:center; }
+  input, button { padding:8px; margin:4px; border-radius:4px; border:none; font-size:16px; }
+  button { cursor:pointer; background:#222; color:#eee; }
 </style>
-<script>
-// small loader progress simulator
-(function(){ let p=0; function tick(){ p = Math.min(100, p + Math.random()*18); const bar = document.querySelector('#cn-progress > i'); if(bar) bar.style.width = p+'%'; if(p<100) setTimeout(tick, 400); } document.addEventListener('DOMContentLoaded', ()=>{ setTimeout(tick,300); }); })();
-</script>
-
 </head>
 <body>
 
-<!-- Top navbar -->
-<header id='cn-topbar' class='cn-fade-in' style='position:fixed;top:0;left:0;right:0;height:56px;display:flex;align-items:center;gap:12px;padding:8px 16px;z-index:9997;background:linear-gradient(90deg, rgba(0,0,0,0.25), rgba(0,0,0,0.15));backdrop-filter:blur(6px)'>
-  <div style='font-weight:700;font-size:1.05rem'>CipherNexus</div>
-  <div style='flex:1'></div>
-  <button id='cn-open-settings' class='button'>Settings</button>
-</header>
-<div id='cn-toasts' style='position:fixed;right:16px;top:72px;z-index:10001;display:flex;flex-direction:column;gap:8px'></div>
-
-
-<!-- === B4: Login Modal (polished) === -->
-<div id="cn-auth-modal" class="cn-modal cn-pop" role="dialog" aria-modal="true" aria-label="CipherNexus Login" style="display:flex;align-items:center;justify-content:center;position:fixed;inset:0;z-index:10000">
-  <div style="width:380px;background:var(--card);padding:18px;border-radius:12px;box-shadow:var(--shadow);backdrop-filter:blur(6px)">
-    <h2 style="margin:0 0 8px 0">Enter Room</h2>
-    <div style="display:flex;gap:8px">
-      <input id="cn-room-code" placeholder="Room code (secret)" style="flex:1;padding:8px;border-radius:8px;border:1px solid var(--glass);background:transparent;color:var(--text)"/>
-    </div>
-    <div style="margin-top:8px;display:flex;gap:8px">
-      <select id="cn-username-list" style="flex:1;padding:8px;border-radius:8px;background:transparent;color:var(--text);border:1px solid var(--glass)"></select>
-      <input id="cn-username-new" placeholder="New username" style="flex:1;padding:8px;border-radius:8px;border:1px solid var(--glass);background:transparent;color:var(--text)"/>
-    </div>
-    <div style="display:flex;gap:8px;margin-top:12px;justify-content:flex-end">
-      <button id="cn-login-btn" class="button">Join</button>
-      <button id="cn-guest-btn" class="button ghost">Guest</button>
-    </div>
-    <div style="margin-top:10px;font-size:12px;opacity:0.85">Your session will be end-to-end encrypted using the room code. Usernames are stored locally only.</div>
-  </div>
+<div id="enterRoom">
+  <h1>ULTRA Chat</h1>
+  <input type="text" id="roomCode" placeholder="Enter room code">
+  <button id="joinBtn">Join</button>
 </div>
-<script>
-// focus helper and animation
-document.addEventListener('DOMContentLoaded', ()=>{
-  const modal = document.getElementById('cn-auth-modal');
-  if(modal){ modal.classList.add('active'); const inp = document.getElementById('cn-room-code'); inp && inp.focus(); }
-});
-</script>
-<!-- === End Login Modal === -->
-
-
-<!-- Loading + Auth UI -->
-<style>
-#cn-loading{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:linear-gradient(0deg,rgba(0,0,0,0.7),rgba(0,0,0,0.45));z-index:99999;flex-direction:column}
-.cn-spinner{width:72px;height:72px;border-radius:50%;border:8px solid rgba(255,255,255,0.08);border-top-color:#46d;animation:spin 1s linear infinite;margin-bottom:16px}
-@keyframes spin{to{transform:rotate(360deg)}}
-#cn-login{background:rgba(0,0,0,0.6);padding:20px;border-radius:12px;color:white;min-width:320px}
-#cn-login input, #cn-login select{width:100%;padding:8px;margin:6px 0;border-radius:6px;border:1px solid rgba(255,255,255,0.08);background:transparent;color:white}
-#cn-login button{padding:8px 12px;border-radius:8px;background:#46d;color:white;border:none}
-</style>
-<div id="cn-loading">
-  <div class="cn-spinner"></div>
-  <div id="cn-login">
-    <h3 style="margin:0 0 8px 0">Enter Room</h3>
-    <input id="cn-room" placeholder="Room code (secret)"/>
-    <select id="cn-username"></select>
-    <input id="cn-username-new" placeholder="Or enter new username"/>
-    <div style="display:flex;gap:8px;margin-top:8px">
-      <button id="cn-join">Join</button>
-      <button id="cn-guest">Guest</button>
-    </div>
-    <div style="margin-top:8px;font-size:12px;opacity:0.8">Your session will be end-to-end encrypted using the room code.</div>
-  <div id="cn-progress"><i></i></div></div>
-</div>
-
-<!-- Added Feature UI: Video/Audio/Themes/Sidebar -->
-<style>
-/* theme basics */
-.theme-dark{--bg:#021021;--card:#072032;--text:#dfefff}
-.theme-neon{--bg:#060007;--card:#0b0920;--text:#f0f4ff}
-body{background:var(--bg);color:var(--text);font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif}
-.app-shell{display:flex;height:100vh;gap:12px;padding:12px}
-.sidebar{width:260px;background:var(--card);border-radius:12px;padding:12px;box-shadow:0 6px 18px rgba(0,0,0,0.6);overflow:auto}
-.content{flex:1;display:flex;flex-direction:column;gap:8px}
-.video-grid{display:flex;gap:8px;flex-wrap:wrap}
-.video-box{width:320px;height:200px;background:#000;border-radius:10px;overflow:hidden;position:relative}
-.video-box video{width:100%;height:100%;object-fit:cover}
-.controls{display:flex;gap:8px;align-items:center}
-.theme-toggle{margin-left:auto}
-.draggable{position:relative;cursor:move;background:linear-gradient(90deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01));padding:8px;border-radius:8px}
-#localPreview{width:160px;height:120px;border-radius:8px;overflow:hidden;background:#111}
-#remotePreview{width:320px;height:200px;border-radius:8px;overflow:hidden;background:#000}
-.record-btn{background:#ff4d4f;color:white;padding:8px;border-radius:8px;border:none}
-</style>
-
-<div class="app-shell theme-dark" id="appShell">
-  <div class="sidebar" id="sidebar">
-<!-- Theme selector -->
-<div style="margin-top:12px;">
-  <label for="cn-theme-select" style="display:block;margin-bottom:6px">Theme</label>
-  <select id="cn-theme-select" style="width:100%;padding:8px;border-radius:6px;background:transparent;color:inherit;border:1px solid rgba(255,255,255,0.06)">
-    <option value="theme-dark">Dark</option>
-    <option value="theme-neon">Neon</option>
-    <option value="theme-highcontrast">High Contrast</option>
-  </select>
-</div>
-<div class="theme-transition-overlay" id="cn-theme-overlay"></div>
-
-    <h3>CipherNexus</h3>
-    <div><button id="btnToggleTheme" class="button">Toggle Theme</button></div>
-    <hr/>
-    <div><strong>Devices</strong>
-      <div id="deviceList"></div>
-    </div>
-    <hr/>
-    <div><strong>Session</strong>
-      <div><input id="roomInput" placeholder="room code"/></div>
-      <div class="controls"><button id="joinBtn" class="button">Join</button><button id="leaveBtn" class="button ghost">Leave</button></div>
-    </div>
-    <hr/>
-    <div><strong>Media</strong>
-      <div class="controls"><button id="btnStartLocal" class="button">Start Cam</button><button id="btnStopLocal" class="button ghost">Stop Cam</button></div>
-      <div class="controls"><button id="btnShareScreen" class="button">Share Screen</button></div>
-      <div style="margin-top:8px;"><button id="recordAudioBtn" class="record-btn">Record Voice Msg</button></div>
-    </div>
-  </div>
-  <div class="content">
-    <div class="controls">
-      <div class="draggable" id="localPreview"><video id="localVideo" autoplay muted playsinline></video></div>
-      <div class="draggable" id="remotePreview"><video id="remoteVideo" autoplay playsinline></video></div>
-      <div class="theme-toggle"><span class="small">Theme:</span> <button id="themeNeon" class="button ghost">Neon</button></div>
-    </div>
-    <div class="video-grid" id="videoGrid"></div>
-    <div id="voiceMsgs"><h4>Voice messages</h4><div id="voiceList"></div></div>
-  </div>
-</div>
-<!-- End Feature UI -->
-
-<div id="qr-modal" 
-style="
-  position:fixed;top:0;left:0;width:100%;height:100%;
-  backdrop-filter:blur(12px);
-  background:rgba(0,0,0,0.35);
-  display:none;align-items:center;justify-content:center;
-  animation:fadeIn 0.3s ease;
-">
-  <div id="qr-card" style="
-    width:320px;height:420px;background:rgba(255,255,255,0.15);
-    border-radius:20px;backdrop-filter:blur(20px);
-    padding:20px;color:white;text-align:center;
-    animation:scaleIn 0.25s ease;
-  ">
-    <h2>Scan QR Code</h2>
-    <video id="qr-video" style="width:100%;border-radius:12px;"></video>
-    <div id="qr-status" style="margin-top:10px;font-size:14px;opacity:0.8;">Initializing…</div>
-  </div>
-</div>
-
-<style>
-@keyframes fadeIn{from{opacity:0}to{opacity:1}}
-@keyframes scaleIn{from{transform:scale(0.85)}to{transform:scale(1)}}
-</style>
-
-  <main>
-<!-- Polished UI Additions -->
-<style>
-/* Polished card layout and animated progress */
-.cnx-ui { max-width: 900px; margin: 18px auto; font-family: system-ui, -apple-system, 'Segoe UI', Roboto; }
-.cnx-card { background: linear-gradient(135deg,#071024 0%, #08132a 100%); padding:18px; border-radius:12px; box-shadow:0 8px 30px rgba(2,6,23,0.6); color:#dceefb; }
-.cnx-row{display:flex;gap:8px;align-items:center;margin-top:8px;}
-.cnx-label{font-size:13px;color:#9fb0d9;}
-#dropZone{border:2px dashed rgba(255,255,255,0.06); padding:20px; border-radius:8px; text-align:center; transition:background .2s, border-color .2s; cursor:pointer;}
-#dropZone.dragover{background:rgba(255,255,255,0.02); border-color:rgba(99,102,241,0.6);}
-.progress-wrap{margin-top:12px;background:rgba(255,255,255,0.02); padding:8px;border-radius:8px;overflow:hidden;}
-.progress-bar{height:12px;background:linear-gradient(90deg,#22c55e,#06b6d4); width:0%; border-radius:6px; transition: width .35s ease; box-shadow:0 4px 12px rgba(6,9,16,0.6);}
-.small{font-size:12px;color:#a6c0e8;}
-.button{background:#0ea5e9;border:none;padding:8px 12px;border-radius:8px;color:#042a3a; cursor:pointer;font-weight:600;}
-.button.ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);color:inherit;}
-#qrCanvas{width:160px;height:160px;background:#021022;border-radius:8px;padding:6px;}
-</style>
-
-<div class="cnx-ui">
-  <div class="cnx-card">
-    <div style="display:flex;justify-content:space-between;align-items:center">
-      <h2 style="margin:0">CipherNexus — Secure Files</h2>
-      <div style="text-align:right">
-        <button id="exportKeyBtn" class="button">Export Key</button>
-        <button id="importKeyBtn" class="button ghost">Import Key</button>
-        <input id="importKeyFile" type="file" accept="text/*" style="display:none" />
-      </div>
-    </div>
-
-    <div style="margin-top:12px" class="small">Drag & drop files to encrypt & send to peers, or click the area to choose files.</div>
-    <div id="dropZone" tabindex="0" role="button" aria-label="Drop files here">Drop files here or click to select</div>
-
-    <div class="progress-wrap" style="display:none" id="fileProgressWrap">
-      <div id="fileProgressLabel" class="small">Preparing…</div>
-      <div style="height:8px;background:rgba(255,255,255,0.03);border-radius:6px;margin-top:8px;overflow:hidden;">
-        <div id="fileProgressBar" class="progress-bar"></div>
-      </div>
-    </div>
-
-    <div style="display:flex;gap:12px;margin-top:12px;align-items:center">
-      <div>
-        <div class="cnx-label">Session link (URL-safe)</div>
-        <input id="sessionLink" readonly style="width:420px;padding:8px;border-radius:6px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit" />
-      </div>
-      <div style="text-align:center">
-        <div class="cnx-label">Session QR</div>
-        <canvas id="qrCanvas" title="QR code (session)"></canvas>
-        <div style="margin-top:8px"><button id="copySessionBtn" class="button ghost">Copy</button></div>
-      </div>
-    </div>
-
-  </div>
-</div>
-<!-- End Polished UI Additions -->
-
-    <h1>CipherNexus — Static (GitHub Pages)</h1>
-    <div class="card">
-      <label>Room code / Password</label>
-      <div class="row"><input id="roomCode" placeholder="Type a room code / password" /><button id="deriveBtn">Derive & Test</button></div>
-      <label>Plaintext</label>
-      <div class="row"><textarea id="plaintext" rows="4" style="flex:1"></textarea></div>
-      <div class="row"><button id="encryptBtn">Encrypt (AES-GCM)</button><button id="decryptBtn">Decrypt</button></div>
-      <label>Result</label>
-      <pre id="result">No operations yet.</pre>
-    </div>
-    <p style="font-size:13px;color:#9fb0d9">This static build loads Argon2 from a CDN and performs client-side encryption (Argon2 -> HKDF -> AES-GCM). Files are prepared to run on GitHub Pages without a build step.</p>
-  </main>
-
-  
-
-<!-- QR Scan Modal -->
-<div id="qrScanModal" style="display:none; position:fixed; inset:0; background:#0009; backdrop-filter:blur(4px); justify-content:center; align-items:center; z-index:9999;">
-  <div style="background:#0a0f1c; padding:20px; border-radius:10px; width:320px; color:white; text-align:center;">
-    <h3>Scan QR to Join Session</h3>
-    <video id="qrVideo" width="260" height="200" autoplay playsinline style="background:#111;border-radius:8px;"></video>
-    <div style="margin-top:10px;">
-      <button id="qrScanStop" class="button ghost">Stop</button>
-      <button id="qrScanImage" class="button">Scan Image</button>
-      <input id="qrImageFile" type="file" accept="image/*" style="display:none"/>
-    </div>
-    <div id="qrScanStatus" style="margin-top:10px;font-size:12px;color:#9fc4ff;"></div>
-  </div>
-</div>
-
-
-<div id="qr-modal" style="display:none;"></div>
-
-<div id="qr-create-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%;
-backdrop-filter:blur(12px); background:rgba(0,0,0,0.45); align-items:center; justify-content:center;">
-  <div style="background:rgba(255,255,255,0.12); border-radius:16px; padding:20px; width:320px;">
-    <h2 style="color:white; text-align:center;">Session QR</h2>
-    <div id="qr-output" style="margin-top:15px;"></div>
-    <p style="text-align:center; color:white; opacity:0.8;">Signed + Compressed</p>
-  </div>
-</div>
-
-
-<!-- === B1 Loading Screen === -->
-<div id="cn-loading-screen">
-    <div class="cn-loader-spinner"></div>
-    <div class="cn-loader-text">CipherNexus loading…</div>
-</div>
-<script>
-window.addEventListener('load',()=>{
-    const el=document.getElementById('cn-loading-screen');
-    el.style.opacity='0';
-    setTimeout(()=>el.remove(),600);
-});
-</script>
-
 
 <script>
-// Auto-join handler: reads ?join=ROOM&user=NAME or ?enc=BASE64 (optional encrypted payload)
-// If enc param present, attempts to decrypt using window.cryptoHelpers after modal loads.
-(function(){
-  function params(){ return Object.fromEntries(new URLSearchParams(location.search)); }
-  document.addEventListener('DOMContentLoaded', async ()=>{
-    const p = params();
-    if(p.join && p.user){
-      // prefill and auto-click join
-      const rc = document.getElementById('cn-room-code'); const us = document.getElementById('cn-username-new'); const sel = document.getElementById('cn-username-list');
-      if(rc) rc.value = p.join;
-      if(us) us.value = p.user;
-      // wait a small amount for UI to be ready then trigger join
-      setTimeout(()=> document.getElementById('cn-login-btn')?.click(), 500);
-    } else if(p.enc){
-      // encrypted payload expected: base64 JSON with {room, user} encrypted using same AES/HMAC; try to decrypt
-      try{
-        const raw = atob(p.enc);
-        // attempt parse as JSON plaintext first
-        try{ const o = JSON.parse(raw); if(o.room) { document.getElementById('cn-room-code').value=o.room; document.getElementById('cn-username-new').value=o.user||''; setTimeout(()=>document.getElementById('cn-login-btn')?.click(),500); return; } }catch(e){}
-        // else leave to manual decryption by user after entering code (security)
-      }catch(e){ console.warn('auto-join parse failed', e); }
+(async () => {
+  // Core state
+  let rootKey;
+  let isAdmin = false;
+  let userId = "user_" + Math.random().toString(36).slice(2, 10);
+
+  // Utility: derive root key from room code
+  async function deriveRootKey(roomCode) {
+    const enc = new TextEncoder().encode(roomCode);
+    const hash = await crypto.subtle.digest("SHA-256", enc);
+    return await crypto.subtle.importKey(
+      "raw",
+      hash,
+      "AES-GCM",
+      false,
+      ["encrypt", "decrypt"]
+    );
+  }
+
+  // Simple encryption/decryption functions
+  async function encrypt(msg) {
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const encoded = new TextEncoder().encode(msg);
+    const cipher = await crypto.subtle.encrypt({name:"AES-GCM", iv}, rootKey, encoded);
+    return { iv: Array.from(iv), cipher: Array.from(new Uint8Array(cipher)) };
+  }
+  async function decrypt(iv, cipher) {
+    const plain = await crypto.subtle.decrypt(
+      {name:"AES-GCM", iv:new Uint8Array(iv)},
+      rootKey,
+      new Uint8Array(cipher)
+    );
+    return new TextDecoder().decode(plain);
+  }
+
+  // Shadow DOM container
+  const host = document.createElement("div");
+  document.body.appendChild(host);
+  const shadow = host.attachShadow({mode:"closed"});
+  const appRoot = document.createElement("div");
+  appRoot.id = "app";
+  shadow.appendChild(appRoot);
+
+  // Handle join
+  document.getElementById("joinBtn").onclick = async () => {
+    const room = document.getElementById("roomCode").value.trim();
+    if(!room) return alert("Enter a room code!");
+    rootKey = await deriveRootKey(room);
+
+    // Remove room input
+    document.getElementById("enterRoom").style.display="none";
+
+    // Determine admin: first user to enter this room
+    let storedAdmin = localStorage.getItem("admin_" + room);
+    if(!storedAdmin) {
+      isAdmin = true;
+      localStorage.setItem("admin_" + room, userId);
+    } else {
+      isAdmin = storedAdmin === userId;
     }
-  });
+
+    // Launch UI
+    launchUI(room);
+  };
+
+  function launchUI(room) {
+    appRoot.innerHTML = `
+      <h2 style="color:${isAdmin?"gold":"#eee"}">Room: ${room} ${isAdmin?"[ADMIN]":""}</h2>
+      <div id="messages" style="height:300px; overflow:auto; background:#111; padding:6px; margin:6px; border-radius:4px;"></div>
+      <input id="msgInput" placeholder="Type message..." style="width:80%">
+      <button id="sendBtn">Send</button>
+    `;
+
+    document.getElementById("sendBtn").onclick = async () => {
+      const text = document.getElementById("msgInput").value;
+      if(!text) return;
+      const enc = await encrypt(text);
+      addMessage(userId, text, enc);
+      document.getElementById("msgInput").value="";
+    };
+  }
+
+  function addMessage(user, text, enc) {
+    const messages = shadow.getElementById("messages");
+    const div = document.createElement("div");
+    div.textContent = `${user}: ${text}`;
+    messages.appendChild(div);
+    messages.scrollTop = messages.scrollHeight;
+    console.log("Encrypted payload:", enc);
+  }
+
 })();
 </script>
+<script type="module">
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 
+(async () => {
+  const SUPABASE_URL = "https://kljdpxtheqywenuycrgc.supabase.co";
+  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtsamRweHRoZXF5d2VudXljcmdjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ4MDc1MTMsImV4cCI6MjA4MDM4MzUxM30.ZqYXnJ6utRXpZTT2o81APRKk3J-IaOgBXIc8YBV9P-0";
+  const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-<!-- Pairing export button -->
-<button id="cn-pair-export" class="button" style="margin-top:10px;width:100%">Generate Pairing QR</button>
-<script>
-document.addEventListener('DOMContentLoaded',()=>{
-  const b=document.getElementById('cn-pair-export');
-  if(b) b.onclick=async ()=>{
-    const payload = await CN_GeneratePairingPayload();
-    if(!payload){ alert("Missing room/user or key not ready."); return; }
-    // The actual QR generation is handled later in QR phase.
-    console.log("Pair payload:", payload);
-    alert("Pairing payload ready (check console). QR integration in D1–D4 phases.");
-  };
-});
-</script>
+  const room = document.getElementById("roomCode").value.trim();
+  const messages = shadow.getElementById("messages");
 
+  const peers = {}; // other users
 
-<script>
-// D3: Auto-join via encrypted payload: ?enc=BASE64
-document.addEventListener('DOMContentLoaded', async ()=>{
-  const p = Object.fromEntries(new URLSearchParams(location.search));
-  if(p.enc){
-    try{
-      // attempt to parse as base64 payload; user must enter room code to derive keys first
-      const payloadB64 = p.enc;
-      // try to use existing AES key to unpack
-      if(window.cryptoHelpers && window.cryptoHelpers.CN_Unpack_RoomPayload && window.__CIPHERNEXUS_AES_KEY){
-        const data = await window.cryptoHelpers.CN_Unpack_RoomPayload(payloadB64);
-        if(data && data.room){ document.getElementById('cn-room-code').value = data.room; document.getElementById('cn-username-new').value = data.user||''; setTimeout(()=>document.getElementById('cn-login-btn')?.click(),400); }
-      } else {
-        console.log('Encrypted payload present; please enter room code to derive keys then reload to auto-join.');
-      }
-    }catch(e){ console.warn('auto-join enc failed', e); }
+  // --------------------------
+  // Setup WebRTC
+  // --------------------------
+  const localStream = await navigator.mediaDevices.getUserMedia({video:true,audio:true});
+  const localVideo = document.createElement("video");
+  localVideo.autoplay = true;
+  localVideo.muted = true;
+  localVideo.srcObject = localStream;
+  localVideo.style.width = "150px";
+  localVideo.style.border = "1px solid #0f0";
+  appRoot.appendChild(localVideo);
+
+  // Supabase channel for signaling
+  const channel = supabase.channel("room-" + room);
+
+  // Broadcast our offer/answer/candidate encrypted
+  async function sendSignal(targetId, data) {
+    const encData = await encrypt(JSON.stringify(data));
+    await channel.send({
+      type: 'broadcast',
+      event: 'signal',
+      payload: { from: userId, to: targetId, data: encData }
+    });
   }
-});
+
+  // Listen for signals
+  channel.on('broadcast', { event: 'signal' }, async (msg) => {
+    const { from, to, data } = msg.payload;
+    if(to && to !== userId) return;
+    const decData = JSON.parse(await decrypt(data.iv, data.cipher));
+
+    if(!peers[from]) initPeer(from);
+
+    const pc = peers[from].pc;
+    if(decData.type === 'offer') await pc.setRemoteDescription(decData).then(()=>pc.createAnswer().then(async a=>{
+      await pc.setLocalDescription(a);
+      sendSignal(from, a);
+    }));
+    else if(decData.type === 'answer') await pc.setRemoteDescription(decData);
+    else if(decData.candidate) await pc.addIceCandidate(decData);
+  });
+
+  await channel.subscribe();
+
+  // --------------------------
+  // Peer connection helper
+  // --------------------------
+  function initPeer(peerId) {
+    const pc = new RTCPeerConnection({
+      iceServers:[{urls:"stun:stun.l.google.com:19302"}]
+    });
+    pc.onicecandidate = e => { if(e.candidate) sendSignal(peerId, e.candidate); };
+    pc.ontrack = e => {
+      if(!peers[peerId].video) {
+        const v = document.createElement("video");
+        v.autoplay = true;
+        v.srcObject = e.streams[0];
+        v.style.width="150px";
+        v.style.border="1px solid #f0f";
+        appRoot.appendChild(v);
+        peers[peerId].video = v;
+      }
+    };
+    pc.addTrack(localStream.getTracks()[0], localStream);
+    pc.addTrack(localStream.getTracks()[1], localStream);
+
+    peers[peerId] = { pc, video:null };
+  }
+
+  // --------------------------
+  // Matrix-style background animation
+  // --------------------------
+  const canvas = document.createElement("canvas");
+  canvas.style.position="fixed";
+  canvas.style.top="0";
+  canvas.style.left="0";
+  canvas.style.width="100%";
+  canvas.style.height="100%";
+  canvas.style.zIndex="-1";
+  document.body.appendChild(canvas);
+  const ctx = canvas.getContext("2d");
+  let width, height;
+  let drops = [];
+  function resize() {
+    width = canvas.width = window.innerWidth;
+    height = canvas.height = window.innerHeight;
+    drops = Array(Math.floor(width/10)).fill(0);
+  }
+  window.addEventListener("resize", resize);
+  resize();
+
+  function drawMatrix() {
+    ctx.fillStyle="rgba(0,0,0,0.05)";
+    ctx.fillRect(0,0,width,height);
+    ctx.fillStyle="#0f0";
+    ctx.font="14px monospace";
+    for(let i=0;i<drops.length;i++){
+      const char = String.fromCharCode(33 + Math.random()*94);
+      ctx.fillText(char, i*10, drops[i]*10);
+      drops[i] = drops[i]*10 > height && Math.random() > 0.975 ? 0 : drops[i]+1;
+    }
+    requestAnimationFrame(drawMatrix);
+  }
+  drawMatrix();
+
+})();
 </script>
+<script type="module">
+(async () => {
+  // User info
+  const userId = Math.random().toString(36).slice(2,10);
+  let users = {};
+  let messageLog = [];
 
+  // -------------------------
+  // Admin determination
+  // -------------------------
+  const roomKey = document.getElementById("roomCode").value.trim();
+  let adminId = localStorage.getItem("room-" + roomKey + "-admin") || null;
 
-<script src='./dist/loader.js'></script>
+  if(!adminId){
+    adminId = userId;
+    localStorage.setItem("room-" + roomKey + "-admin", adminId);
+  }
+
+  // -------------------------
+  // Window manager
+  // -------------------------
+  function createWindow(title, contentHTML){
+    const win = document.createElement("div");
+    win.classList.add("window");
+    const header = document.createElement("div");
+    header.classList.add("title");
+    header.innerText = title;
+    win.appendChild(header);
+
+    const body = document.createElement("div");
+    body.innerHTML = contentHTML;
+    win.appendChild(body);
+
+    appRoot.appendChild(win);
+
+    // Dragging
+    let offsetX, offsetY, dragging=false;
+    header.addEventListener("mousedown",(e)=>{
+      dragging=true;
+      offsetX = e.offsetX;
+      offsetY = e.offsetY;
+      win.style.zIndex=9999;
+    });
+    document.addEventListener("mousemove",(e)=>{
+      if(dragging){
+        win.style.left = (e.clientX - offsetX) + "px";
+        win.style.top = (e.clientY - offsetY) + "px";
+      }
+    });
+    document.addEventListener("mouseup",()=>{dragging=false;win.style.zIndex=1;});
+    return win;
+  }
+
+  // -------------------------
+  // Chat window
+  // -------------------------
+  const chatWin = createWindow("Chat", `<div id="chatMessages" style="height:150px;overflow:auto;"></div><input id="chatInput" placeholder="Type..." style="width:100%">`);
+  const chatMessages = chatWin.querySelector("#chatMessages");
+  const chatInput = chatWin.querySelector("#chatInput");
+
+  chatInput.addEventListener("keypress", async e => {
+    if(e.key === "Enter" && chatInput.value.trim()){
+      const msg = {user:userId,text:chatInput.value,time:Date.now()};
+      messageLog.push(msg);
+      chatInput.value="";
+      renderMessages();
+      await sendSignal(null, {chat:msg}); // broadcast
+    }
+  });
+
+  function renderMessages(){
+    chatMessages.innerHTML="";
+    messageLog.slice(-50).forEach(m=>{
+      const div = document.createElement("div");
+      div.innerHTML=`<b>${m.user===adminId?'<span style="color:gold">[ADMIN]</span>':''}${m.user}</b>: ${m.text}`;
+      chatMessages.appendChild(div);
+    });
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+  }
+
+  // -------------------------
+  // User list window
+  // -------------------------
+  const userWin = createWindow("Users", `<div id="userList"></div>`);
+  const userListDiv = userWin.querySelector("#userList");
+
+  function renderUsers(){
+    userListDiv.innerHTML="";
+    Object.entries(users).forEach(([uid,u])=>{
+      const div = document.createElement("div");
+      div.innerHTML=`${uid===adminId?'<span style="color:gold">[ADMIN]</span>':''}${u.name || uid}`;
+      userListDiv.appendChild(div);
+    });
+  }
+
+  // -------------------------
+  // Handle signals for chat/user updates
+  // -------------------------
+  async function handleSignal(data){
+    if(data.chat){
+      messageLog.push(data.chat);
+      renderMessages();
+    }
+    if(data.userUpdate){
+      users = data.userUpdate;
+      renderUsers();
+    }
+  }
+
+  // -------------------------
+  // Broadcast own presence
+  // -------------------------
+  users[userId] = {name:userId};
+  await sendSignal(null,{userUpdate:users});
+  renderUsers();
+
+})();
+</script>
+<script type="module">
+(async () => {
+  // -------------------------
+  // WebRTC setup
+  // -------------------------
+  const peers = {};
+  const localStream = await navigator.mediaDevices.getUserMedia({video:true,audio:true});
+
+  // Create local video window
+  const localWin = createWindow("You", `<video autoplay muted playsinline style="width:100%;height:100%;"></video>`);
+  const localVideo = localWin.querySelector("video");
+  localVideo.srcObject = localStream;
+
+  // Signaling through your ultra encrypted method
+  async function sendSignal(targetId, payload){
+    const enc = await ultraEncrypt(0, JSON.stringify(payload));
+    // Replace with Supabase realtime or BroadcastChannel
+    bc.postMessage({type:"signal", data:enc, target:targetId || "all"});
+  }
+
+  bc.onmessage = async e => {
+    const {type,data,target} = e.data;
+    if(type==="signal"){
+      if(target && target!==userId && target!=="all") return;
+      const dec = await ultraDecrypt(data);
+      const payload = JSON.parse(dec);
+      handleSignal(payload);
+    }
+  };
+
+  // -------------------------
+  // Peer connection helper
+  // -------------------------
+  async function addPeer(peerId){
+    if(peers[peerId]) return peers[peerId];
+    const pc = new RTCPeerConnection({
+      iceServers:[{urls:["stun:stun.l.google.com:19302"]}]
+    });
+
+    // Add local tracks
+    localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+
+    // Handle remote tracks
+    const remoteWin = createWindow(peerId, `<video autoplay playsinline style="width:100%;height:100%;"></video>`);
+    const remoteVideo = remoteWin.querySelector("video");
+
+    pc.ontrack = e => {
+      remoteVideo.srcObject = e.streams[0];
+    };
+
+    // ICE candidates
+    pc.onicecandidate = e => {
+      if(e.candidate){
+        sendSignal(peerId,{ice:e.candidate});
+      }
+    };
+
+    peers[peerId]=pc;
+    return pc;
+  }
+
+  // -------------------------
+  // Handle incoming signals
+  // -------------------------
+  async function handleSignal(payload){
+    if(payload.chat) {
+      messageLog.push(payload.chat);
+      renderMessages();
+    }
+    if(payload.userUpdate){
+      users=payload.userUpdate;
+      renderUsers();
+      // Add new peers
+      Object.keys(users).forEach(async uid=>{
+        if(uid!==userId) await addPeer(uid);
+      });
+    }
+    if(payload.ice){
+      const pc = await addPeer(payload.sender);
+      await pc.addIceCandidate(payload.ice);
+    }
+    if(payload.sdp){
+      const pc = await addPeer(payload.sender);
+      await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
+      if(pc.signalingState!=="stable"){
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+        sendSignal(payload.sender,{sdp:pc.localDescription});
+      }
+    }
+  }
+
+  // -------------------------
+  // Matrix-style background
+  // -------------------------
+  const canvas = document.createElement("canvas");
+  canvas.style.position="fixed";
+  canvas.style.top="0";
+  canvas.style.left="0";
+  canvas.style.width="100%";
+  canvas.style.height="100%";
+  canvas.style.zIndex="0";
+  document.body.appendChild(canvas);
+  const ctx = canvas.getContext("2d");
+  const cols = Math.floor(window.innerWidth/20);
+  const drops = Array(cols).fill(0);
+
+  function matrixTick(){
+    ctx.fillStyle="rgba(0,0,0,0.1)";
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.fillStyle="#0F0";
+    ctx.font="20px monospace";
+    drops.forEach((y,i)=>{
+      const text = String.fromCharCode(0x30A0 + Math.random()*96);
+      ctx.fillText(text,i*20,y*20);
+      if(y*20>canvas.height && Math.random()>0.975) drops[i]=0;
+      else drops[i]++;
+    });
+    requestAnimationFrame(matrixTick);
+  }
+  matrixTick();
+
+})();
+</script>
+<script type="module">
+(async()=>{
+  // -------------------------
+  // Admin and Room Logic
+  // -------------------------
+  const roomCode = prompt("Enter or create a room code:");
+  await deriveRoot(roomCode);
+
+  // Admin is first to create room
+  let isAdmin = false;
+  if(!localStorage.getItem("roomOwner")){
+    localStorage.setItem("roomOwner", userId);
+    isAdmin = true;
+  } else if(localStorage.getItem("roomOwner")===userId){
+    isAdmin = true;
+  }
+
+  function renderUsers() {
+    appRoot.querySelectorAll(".user").forEach(el=>el.remove());
+    Object.entries(users).forEach(([id,u])=>{
+      const div = document.createElement("div");
+      div.className="user";
+      div.textContent = u.name + (localStorage.getItem("roomOwner")===id ? " ★" : "");
+      div.style.color = (localStorage.getItem("roomOwner")===id ? "gold" : "#eee");
+      appRoot.appendChild(div);
+    });
+  }
+
+  // -------------------------
+  // Track user count per room
+  // -------------------------
+  const userCountDiv = document.createElement("div");
+  userCountDiv.style.position="fixed";
+  userCountDiv.style.bottom="10px";
+  userCountDiv.style.left="10px";
+  userCountDiv.style.color="#0F0";
+  userCountDiv.style.fontFamily="monospace";
+  appRoot.appendChild(userCountDiv);
+
+  function updateUserCount() {
+    userCountDiv.textContent = `Users in room: ${Object.keys(users).length}`;
+  }
+
+  setInterval(updateUserCount, 1500);
+
+  // -------------------------
+  // Admin panel
+  // -------------------------
+  if(isAdmin){
+    const adminPanel = document.createElement("div");
+    adminPanel.style.position="fixed";
+    adminPanel.style.top="10px";
+    adminPanel.style.right="10px";
+    adminPanel.style.background="rgba(0,0,0,0.8)";
+    adminPanel.style.color="gold";
+    adminPanel.style.padding="10px";
+    adminPanel.style.border="1px solid #555";
+    adminPanel.innerHTML = `
+      <h3>Admin Panel</h3>
+      <button id="kickBtn">Kick Random User</button>
+      <button id="msgBtn">Send Global Message</button>
+    `;
+    appRoot.appendChild(adminPanel);
+
+    adminPanel.querySelector("#kickBtn").onclick = () => {
+      const keys = Object.keys(users).filter(id=>id!==userId);
+      if(!keys.length) return alert("No one to kick");
+      const victim = keys[Math.floor(Math.random()*keys.length)];
+      delete users[victim];
+      renderUsers();
+      broadcast("userUpdate", users);
+    };
+
+    adminPanel.querySelector("#msgBtn").onclick = () => {
+      const msg = prompt("Global message:");
+      if(!msg) return;
+      const payload = {chat:{text:msg,time:Date.now(),sender:"ADMIN"}};
+      messageLog.push(payload.chat);
+      renderMessages();
+      broadcast("msg", payload.chat);
+    };
+  }
+
+  // -------------------------
+  // Window animations
+  // -------------------------
+  const windowElems = appRoot.querySelectorAll(".window");
+  windowElems.forEach(w=>{
+    w.style.transition="transform 0.2s, box-shadow 0.2s";
+    w.onmouseenter = ()=>w.style.boxShadow="0 0 12px #0F0";
+    w.onmouseleave = ()=>w.style.boxShadow="0 0 6px #000";
+  });
+
+})();
+</script>
+<script type="module">
+(async()=>{
+  // -------------------------
+  // Movable/Resizable Windows
+  // -------------------------
+  function makeWindow(win) {
+    let offsetX=0, offsetY=0, isDragging=false;
+
+    const title = win.querySelector(".title");
+    title.onmousedown = e=>{
+      isDragging=true;
+      offsetX=e.clientX-win.offsetLeft;
+      offsetY=e.clientY-win.offsetTop;
+      win.style.zIndex=1000; // bring to front
+    };
+
+    document.onmousemove = e=>{
+      if(!isDragging) return;
+      win.style.left = (e.clientX-offsetX)+"px";
+      win.style.top = (e.clientY-offsetY)+"px";
+    };
+
+    document.onmouseup = e=>{
+      isDragging=false;
+    };
+
+    // Allow resize using CSS resize
+    win.style.resize="both";
+    win.style.overflow="auto";
+  }
+
+  // -------------------------
+  // Create Video Windows
+  // -------------------------
+  function createVideoWindow(userId, stream) {
+    const win = document.createElement("div");
+    win.className="window";
+    win.style.width="300px";
+    win.style.height="200px";
+    win.style.left=(Math.random()*400)+"px";
+    win.style.top=(Math.random()*200)+"px";
+
+    const title = document.createElement("div");
+    title.className="title";
+    title.textContent = users[userId]?.name || "User";
+    win.appendChild(title);
+
+    const video = document.createElement("video");
+    video.autoplay=true;
+    video.srcObject=stream;
+    video.style.width="100%";
+    video.style.height="calc(100% - 20px)";
+    win.appendChild(video);
+
+    appRoot.appendChild(win);
+    makeWindow(win);
+  }
+
+  // -------------------------
+  // Background/Particle Animations
+  // -------------------------
+  const canvas = document.createElement("canvas");
+  canvas.style.position="fixed";
+  canvas.style.top=0;
+  canvas.style.left=0;
+  canvas.style.width="100%";
+  canvas.style.height="100%";
+  canvas.style.zIndex="0";
+  document.body.appendChild(canvas);
+
+  const ctx = canvas.getContext("2d");
+  function resizeCanvas(){ canvas.width=window.innerWidth; canvas.height=window.innerHeight; }
+  window.addEventListener("resize", resizeCanvas);
+  resizeCanvas();
+
+  const particles = Array.from({length:80},()=>({
+    x:Math.random()*canvas.width,
+    y:Math.random()*canvas.height,
+    vx:Math.random()*1-0.5,
+    vy:Math.random()*1-0.5,
+    size:Math.random()*2+1
+  }));
+
+  function animate() {
+    ctx.fillStyle="rgba(0,0,0,0.2)";
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.fillStyle="#0F0";
+    particles.forEach(p=>{
+      p.x+=p.vx;
+      p.y+=p.vy;
+      if(p.x<0||p.x>canvas.width)p.vx*=-1;
+      if(p.y<0||p.y>canvas.height)p.vy*=-1;
+      ctx.beginPath();
+      ctx.arc(p.x,p.y,p.size,0,2*Math.PI);
+      ctx.fill();
+    });
+    requestAnimationFrame(animate);
+  }
+  animate();
+
+})();
+</script>
+<script type="module">
+(async()=>{
+  // -------------------------
+  // WebRTC Setup
+  // -------------------------
+  const peers = {}; // userId -> RTCPeerConnection
+  const localStream = await navigator.mediaDevices.getUserMedia({video:true,audio:true});
+  createVideoWindow("local", localStream); // show local video
+
+  const roomCode = prompt("Enter room code:"); // user-generated room code
+  await deriveRoot(roomCode); // AES key derivation
+
+  const bc = new BroadcastChannel("ultra_room_"+roomCode);
+
+  // Send offer/answer through encrypted BroadcastChannel
+  async function sendSignal(targetId, data){
+    const encrypted = await ultraEncrypt(0, JSON.stringify({from:"local",data}));
+    bc.postMessage({target:targetId, payload:encrypted});
+  }
+
+  bc.onmessage = async(e)=>{
+    const {target,payload} = e.data;
+    if(target && target !== "local") return; // ignore if not for us
+    const decrypted = await ultraDecrypt(payload);
+    const msg = JSON.parse(decrypted);
+
+    const from = msg.from;
+    const data = msg.data;
+
+    if(!peers[from]){
+      const pc = new RTCPeerConnection();
+      localStream.getTracks().forEach(t=>pc.addTrack(t, localStream));
+      pc.ontrack = ev => {
+        if(!document.getElementById("vid_"+from)){
+          createVideoWindow(from, ev.streams[0]);
+        }
+      };
+      pc.onicecandidate = e=>{
+        if(e.candidate) sendSignal(from, {ice:e.candidate});
+      };
+      peers[from]=pc;
+    }
+
+    const pc = peers[from];
+
+    if(data.sdp){
+      await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
+      if(data.sdp.type==="offer"){
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+        sendSignal(from, {sdp: pc.localDescription});
+      }
+    }
+
+    if(data.ice){
+      try{ await pc.addIceCandidate(data.ice); }catch(e){console.warn(e);}
+    }
+  };
+
+  // Initiate connection to new user
+  async function connectToUser(userId){
+    if(peers[userId]) return;
+    const pc = new RTCPeerConnection();
+    localStream.getTracks().forEach(t=>pc.addTrack(t, localStream));
+    pc.ontrack = ev => createVideoWindow(userId, ev.streams[0]);
+    pc.onicecandidate = e=>{
+      if(e.candidate) sendSignal(userId, {ice:e.candidate});
+    };
+    peers[userId]=pc;
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+    sendSignal(userId, {sdp: pc.localDescription});
+  }
+
+  console.log("WebRTC + Encrypted Signaling ready for room:", roomCode);
+
+})();
+</script>
+<script type="module">
+(async()=>{
+
+// -------------------------
+// Admin Identification
+// -------------------------
+let isAdmin = false;
+const users = {}; // userId -> {name, admin}
+const localUserId = "local_" + Math.random().toString(36).slice(2);
+
+if(!localStorage.getItem("ultra_admin_"+roomCode)){
+    isAdmin = true;
+    localStorage.setItem("ultra_admin_"+roomCode, localUserId);
+}
+users[localUserId] = {name:"You", admin:isAdmin};
+
+// -------------------------
+// Chat system
+// -------------------------
+const chatLog = [];
+function postMessage(text, fromId=localUserId){
+    chatLog.push({from:fromId, text, time:Date.now()});
+    renderChat();
+    // broadcast to others
+    bc.postMessage({target:null, payload:await ultraEncrypt(1, JSON.stringify({chat:{from:fromId,text}}))});
+}
+
+function renderChat(){
+    let container = document.getElementById("chatWindow");
+    if(!container){
+        container = document.createElement("div");
+        container.id = "chatWindow";
+        container.style.position="fixed";
+        container.style.bottom="0";
+        container.style.left="0";
+        container.style.width="300px";
+        container.style.height="200px";
+        container.style.background="rgba(0,0,0,0.8)";
+        container.style.color="#0f0";
+        container.style.fontFamily="monospace";
+        container.style.overflowY="auto";
+        container.style.padding="6px";
+        document.body.appendChild(container);
+    }
+    container.innerHTML = "";
+    chatLog.slice(-100).forEach(msg=>{
+        const u = users[msg.from]?.name || "Anon";
+        const a = users[msg.from]?.admin ? "<span style='color:gold'>★</span>":"";
+        const line = document.createElement("div");
+        line.innerHTML = `${a}<b>${u}:</b> ${msg.text}`;
+        container.appendChild(line);
+    });
+    container.scrollTop = container.scrollHeight;
+}
+
+// -------------------------
+// Chat input
+// -------------------------
+let chatInput = document.getElementById("chatInput");
+if(!chatInput){
+    chatInput = document.createElement("input");
+    chatInput.id="chatInput";
+    chatInput.placeholder="Type message...";
+    chatInput.style.position="fixed";
+    chatInput.style.bottom="0";
+    chatInput.style.left="310px";
+    chatInput.style.width="250px";
+    chatInput.style.background="rgba(0,0,0,0.9)";
+    chatInput.style.color="#0f0";
+    chatInput.style.border="1px solid #0f0";
+    chatInput.style.fontFamily="monospace";
+    document.body.appendChild(chatInput);
+}
+
+chatInput.addEventListener("keydown",async(e)=>{
+    if(e.key==="Enter" && chatInput.value.trim()!==""){
+        await postMessage(chatInput.value.trim());
+        chatInput.value="";
+    }
+});
+
+// -------------------------
+// Encrypted chat listener
+// -------------------------
+bc.onmessage = async(e)=>{
+    const {target,payload} = e.data;
+    if(target && target !== localUserId) return;
+    const decrypted = await ultraDecrypt(payload);
+    const msg = JSON.parse(decrypted);
+    if(msg.chat){
+        chatLog.push(msg.chat);
+        renderChat();
+    }
+};
+
+// -------------------------
+// Matrix-style background animation
+// -------------------------
+const canvas = document.createElement("canvas");
+canvas.style.position="fixed";
+canvas.style.top="0";
+canvas.style.left="0";
+canvas.style.width="100%";
+canvas.style.height="100%";
+canvas.style.zIndex="-1";
+document.body.appendChild(canvas);
+const ctx = canvas.getContext("2d");
+let columns = [];
+function resizeCanvas(){ canvas.width = window.innerWidth; canvas.height = window.innerHeight; columns = Array(Math.floor(canvas.width/20)).fill(0);}
+window.addEventListener("resize",resizeCanvas);
+resizeCanvas();
+
+function drawMatrix(){
+    ctx.fillStyle = "rgba(0,0,0,0.1)";
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.fillStyle = "#0f0";
+    ctx.font = "16px monospace";
+    for(let i=0;i<columns.length;i++){
+        const char = String.fromCharCode(33+Math.floor(Math.random()*94));
+        ctx.fillText(char,i*20,columns[i]*20);
+        columns[i]++;
+        if(columns[i]*20>canvas.height && Math.random()>0.975) columns[i]=0;
+    }
+    requestAnimationFrame(drawMatrix);
+}
+drawMatrix();
+
+})();
+</script>
+<script type="module">
+(async()=>{
+
+// -------------------------
+// WebRTC + Encrypted Signaling
+// -------------------------
+
+// Each peer: RTCPeerConnection
+const peers = {}; // userId -> { pc, dataChannel }
+const config = { iceServers:[{urls:"stun:stun.l.google.com:19302"}] };
+
+// Utility: encrypt/decrypt messages using AES-GCM + rootKey
+async function encryptMsg(msg, i){
+    const key = await crypto.subtle.importKey("raw", rootKey, "AES-GCM", false, ["encrypt"]);
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const ct = await crypto.subtle.encrypt({name:"AES-GCM", iv}, key, new TextEncoder().encode(msg));
+    return btoa(JSON.stringify({i, iv:Array.from(iv), ct:Array.from(new Uint8Array(ct))}));
+}
+
+async function decryptMsg(payload){
+    const {i, iv, ct} = JSON.parse(atob(payload));
+    const key = await crypto.subtle.importKey("raw", rootKey, "AES-GCM", false, ["decrypt"]);
+    const pt = await crypto.subtle.decrypt({name:"AES-GCM", iv:new Uint8Array(iv)}, key, new Uint8Array(ct));
+    return new TextDecoder().decode(pt);
+}
+
+// -------------------------
+// Supabase signaling setup
+// -------------------------
+const supabaseUrl = "https://kljdpxtheqywenuycrgc.supabase.co";
+const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtsamRweHRoZXF5d2VudXljcmdjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ4MDc1MTMsImV4cCI6MjA4MDM4MzUxM30.ZqYXnJ6utRXpZTT2o81APRKk3J-IaOgBXIc8YBV9P-0";
+const { createClient } = await import("https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm");
+const supabase = createClient(supabaseUrl, supabaseKey);
+
+// -------------------------
+// Helper: send signal
+// -------------------------
+async function sendSignal(toId, type, data){
+    const payload = { to:toId, from:localUserId, type, data };
+    await supabase.from("signals").insert([{room:roomCode, payload:JSON.stringify(payload)}]);
+}
+
+// -------------------------
+// Listen for signals
+// -------------------------
+supabase.from(`signals:room=eq.${roomCode}`).on("INSERT", async ({new: row})=>{
+    const {to, from, type, data} = JSON.parse(row.payload);
+    if(to !== localUserId) return; // not for me
+
+    if(type==="offer"){
+        const pc = createPeer(from, false);
+        await pc.setRemoteDescription(new RTCSessionDescription(data));
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+        await sendSignal(from,"answer",answer);
+    } else if(type==="answer"){
+        const pc = peers[from]?.pc;
+        if(pc) await pc.setRemoteDescription(new RTCSessionDescription(data));
+    } else if(type==="ice"){
+        const pc = peers[from]?.pc;
+        if(pc) await pc.addIceCandidate(new RTCIceCandidate(data));
+    }
+}).subscribe();
+
+// -------------------------
+// Create RTCPeerConnection
+// -------------------------
+function createPeer(userId, isInitiator){
+    if(peers[userId]) return peers[userId].pc;
+    const pc = new RTCPeerConnection(config);
+
+    // Add local tracks
+    localStream.getTracks().forEach(t=>pc.addTrack(t, localStream));
+
+    // Data channel for messages/signals
+    let dc;
+    if(isInitiator){
+        dc = pc.createDataChannel("chat");
+        setupDataChannel(userId, dc);
+    } else {
+        pc.ondatachannel = (e)=>setupDataChannel(userId, e.channel);
+    }
+
+    // Remote stream
+    const remoteStream = new MediaStream();
+    pc.ontrack = e=>e.streams[0].getTracks().forEach(t=>remoteStream.addTrack(t));
+    pc.onconnectionstatechange = ()=>{ if(pc.connectionState==="disconnected") removeUser(userId); };
+
+    // ICE candidates
+    pc.onicecandidate = (e)=>{ if(e.candidate) sendSignal(userId,"ice", e.candidate); };
+
+    peers[userId] = { pc, dataChannel: dc, stream: remoteStream };
+    
+    // Create remote video window
+    createVideoWindow(userId, remoteStream, users[userId].name, users[userId].admin);
+
+    return pc;
+}
+
+// -------------------------
+// Setup data channel
+// -------------------------
+function setupDataChannel(userId, dc){
+    dc.onmessage = async e=>{
+        const msg = await decryptMsg(e.data);
+        messageLog.push({text:msg, from:userId, time:Date.now()});
+        renderMessages();
+    };
+}
+
+// -------------------------
+// Connect to existing users in room
+// -------------------------
+async function joinRoom(){
+    const { data } = await supabase.from("users").select("*").eq("room", roomCode);
+    for(const u of data){
+        if(u.id!==localUserId) {
+            createPeer(u.id, true);
+        }
+    }
+    // Add self to user table
+    await supabase.from("users").upsert([{id:localUserId, name:users[localUserId].name, room:roomCode, admin:isAdmin}]);
+}
+
+joinRoom();
+
+})();
+</script>
+<script type="module">
+(async()=>{
+
+// -------------------------
+// WebRTC + Encrypted Signaling
+// -------------------------
+
+// Each peer: RTCPeerConnection
+const peers = {}; // userId -> { pc, dataChannel }
+const config = { iceServers:[{urls:"stun:stun.l.google.com:19302"}] };
+
+// Utility: encrypt/decrypt messages using AES-GCM + rootKey
+async function encryptMsg(msg, i){
+    const key = await crypto.subtle.importKey("raw", rootKey, "AES-GCM", false, ["encrypt"]);
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const ct = await crypto.subtle.encrypt({name:"AES-GCM", iv}, key, new TextEncoder().encode(msg));
+    return btoa(JSON.stringify({i, iv:Array.from(iv), ct:Array.from(new Uint8Array(ct))}));
+}
+
+async function decryptMsg(payload){
+    const {i, iv, ct} = JSON.parse(atob(payload));
+    const key = await crypto.subtle.importKey("raw", rootKey, "AES-GCM", false, ["decrypt"]);
+    const pt = await crypto.subtle.decrypt({name:"AES-GCM", iv:new Uint8Array(iv)}, key, new Uint8Array(ct));
+    return new TextDecoder().decode(pt);
+}
+
+// -------------------------
+// Supabase signaling setup
+// -------------------------
+const supabaseUrl = "https://kljdpxtheqywenuycrgc.supabase.co";
+const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtsamRweHRoZXF5d2VudXljcmdjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ4MDc1MTMsImV4cCI6MjA4MDM4MzUxM30.ZqYXnJ6utRXpZTT2o81APRKk3J-IaOgBXIc8YBV9P-0";
+const { createClient } = await import("https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm");
+const supabase = createClient(supabaseUrl, supabaseKey);
+
+// -------------------------
+// Helper: send signal
+// -------------------------
+async function sendSignal(toId, type, data){
+    const payload = { to:toId, from:localUserId, type, data };
+    await supabase.from("signals").insert([{room:roomCode, payload:JSON.stringify(payload)}]);
+}
+
+// -------------------------
+// Listen for signals
+// -------------------------
+supabase.from(`signals:room=eq.${roomCode}`).on("INSERT", async ({new: row})=>{
+    const {to, from, type, data} = JSON.parse(row.payload);
+    if(to !== localUserId) return; // not for me
+
+    if(type==="offer"){
+        const pc = createPeer(from, false);
+        await pc.setRemoteDescription(new RTCSessionDescription(data));
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+        await sendSignal(from,"answer",answer);
+    } else if(type==="answer"){
+        const pc = peers[from]?.pc;
+        if(pc) await pc.setRemoteDescription(new RTCSessionDescription(data));
+    } else if(type==="ice"){
+        const pc = peers[from]?.pc;
+        if(pc) await pc.addIceCandidate(new RTCIceCandidate(data));
+    }
+}).subscribe();
+
+// -------------------------
+// Create RTCPeerConnection
+// -------------------------
+function createPeer(userId, isInitiator){
+    if(peers[userId]) return peers[userId].pc;
+    const pc = new RTCPeerConnection(config);
+
+    // Add local tracks
+    localStream.getTracks().forEach(t=>pc.addTrack(t, localStream));
+
+    // Data channel for messages/signals
+    let dc;
+    if(isInitiator){
+        dc = pc.createDataChannel("chat");
+        setupDataChannel(userId, dc);
+    } else {
+        pc.ondatachannel = (e)=>setupDataChannel(userId, e.channel);
+    }
+
+    // Remote stream
+    const remoteStream = new MediaStream();
+    pc.ontrack = e=>e.streams[0].getTracks().forEach(t=>remoteStream.addTrack(t));
+    pc.onconnectionstatechange = ()=>{ if(pc.connectionState==="disconnected") removeUser(userId); };
+
+    // ICE candidates
+    pc.onicecandidate = (e)=>{ if(e.candidate) sendSignal(userId,"ice", e.candidate); };
+
+    peers[userId] = { pc, dataChannel: dc, stream: remoteStream };
+    
+    // Create remote video window
+    createVideoWindow(userId, remoteStream, users[userId].name, users[userId].admin);
+
+    return pc;
+}
+
+// -------------------------
+// Setup data channel
+// -------------------------
+function setupDataChannel(userId, dc){
+    dc.onmessage = async e=>{
+        const msg = await decryptMsg(e.data);
+        messageLog.push({text:msg, from:userId, time:Date.now()});
+        renderMessages();
+    };
+}
+
+// -------------------------
+// Connect to existing users in room
+// -------------------------
+async function joinRoom(){
+    const { data } = await supabase.from("users").select("*").eq("room", roomCode);
+    for(const u of data){
+        if(u.id!==localUserId) {
+            createPeer(u.id, true);
+        }
+    }
+    // Add self to user table
+    await supabase.from("users").upsert([{id:localUserId, name:users[localUserId].name, room:roomCode, admin:isAdmin}]);
+}
+
+joinRoom();
+
+})();
+</script>
+<script>
+// -------------------------
+// Matrix-style background
+// -------------------------
+const canvas = document.createElement("canvas");
+canvas.style.position = "fixed";
+canvas.style.top = "0";
+canvas.style.left = "0";
+canvas.style.width = "100%";
+canvas.style.height = "100%";
+canvas.style.zIndex = "-1";
+document.body.appendChild(canvas);
+
+const ctx = canvas.getContext("2d");
+let w = canvas.width = window.innerWidth;
+let h = canvas.height = window.innerHeight;
+
+const cols = Math.floor(w / 20) + 1;
+const ypos = Array(cols).fill(0);
+
+function matrixTick(){
+    ctx.fillStyle = "rgba(0,0,0,0.05)";
+    ctx.fillRect(0,0,w,h);
+    ctx.fillStyle = "#0F0";
+    ctx.font = "16px monospace";
+    
+    ypos.forEach((y,i)=>{
+        const text = String.fromCharCode(33 + Math.random()*94);
+        ctx.fillText(text, i*20, y);
+        ypos[i] = y > h + Math.random()*10000 ? 0 : y + 20;
+    });
+    requestAnimationFrame(matrixTick);
+}
+matrixTick();
+
+window.addEventListener("resize", ()=>{
+    w = canvas.width = window.innerWidth;
+    h = canvas.height = window.innerHeight;
+});
+
+// -------------------------
+// Admin panel enhancements
+// -------------------------
+function markAdmin(userId){
+    const userElem = document.querySelector(`#user-${userId} .userName`);
+    if(userElem){
+        userElem.innerHTML += " <span style='color:gold;font-weight:bold;'>★</span>";
+    }
+}
+
+if(isAdmin){
+    markAdmin(localUserId);
+}
+
+// Admin panel buttons
+const godPanel = document.getElementById("godPanel");
+godPanel.style.display = "block";
+
+godPanel.innerHTML = `
+  <button onclick="chaosEnabled = !chaosEnabled">Chaos</button>
+  <button onclick="botUsers.forEach(b=>b.mood=1)">Make Bots Happy</button>
+  <button onclick="botUsers.forEach(b=>b.mood=-1)">Make Bots Miserable</button>
+  <button onclick="exportAnalytics()">Export Analytics</button>
+  <button onclick="document.body.style.filter='invert(1) hue-rotate(180deg)'">Matrix Filter</button>
+  <button onclick="document.body.style.filter='none'">Normal View</button>
+`;
+
+// -------------------------
+// Animated windows
+// -------------------------
+function animateWindow(win){
+    const dx = Math.random()*2-1;
+    const dy = Math.random()*2-1;
+    const rect = win.getBoundingClientRect();
+    win.style.transform = `translate(${dx}px, ${dy}px)`;
+    requestAnimationFrame(()=>animateWindow(win));
+}
+
+document.querySelectorAll(".window").forEach(animateWindow);
+
+// -------------------------
+// Highlight new messages
+// -------------------------
+function highlightMessage(msgElem){
+    msgElem.style.background = "#0F0";
+    msgElem.style.color = "#000";
+    setTimeout(()=>{ msgElem.style.background=""; msgElem.style.color=""; }, 1200);
+}
+
+// Hook into renderMessages
+const oldRenderMessages = renderMessages;
+renderMessages = () => {
+    oldRenderMessages();
+    const msgs = document.querySelectorAll(".message");
+    if(msgs.length) highlightMessage(msgs[msgs.length-1]);
+}
+
+// -------------------------
+// Responsive chat layout
+// -------------------------
+window.addEventListener("resize", ()=>{ 
+    appRoot.style.height = window.innerHeight+"px"; 
+    appRoot.style.width = window.innerWidth+"px"; 
+});
+
+</script>
+<script>
+// -------------------------
+// Admin control logic
+// -------------------------
+function isAdminUser(userId){
+    return roomCreatorId === userId; // creator of the room is admin
+}
+
+function kickUser(userId){
+    if(!isAdminUser(localUserId)) return alert("Only admin can kick users!");
+    delete users[userId];
+    renderUsers();
+    broadcast("userUpdate", users);
+}
+
+function renameUser(userId, newName){
+    if(!isAdminUser(localUserId)) return alert("Only admin can rename users!");
+    if(users[userId]) users[userId].name = newName;
+    renderUsers();
+    broadcast("userUpdate", users);
+}
+
+// Add admin buttons dynamically
+if(isAdminUser(localUserId)){
+    const adminDiv = document.createElement("div");
+    adminDiv.style.marginTop = "10px";
+    adminDiv.innerHTML = `
+        <button onclick="kickUser(prompt('User ID to kick:'))">Kick User</button>
+        <button onclick="renameUser(prompt('User ID:'), prompt('New Name:'))">Rename User</button>
+    `;
+    godPanel.appendChild(adminDiv);
+}
+
+// -------------------------
+// Video & Audio window management
+// -------------------------
+const mediaWindows = {};
+
+async function createMediaWindow(userId){
+    if(mediaWindows[userId]) return mediaWindows[userId];
+    
+    const win = document.createElement("div");
+    win.className = "window";
+    win.style.width = "320px";
+    win.style.height = "240px";
+    
+    const title = document.createElement("div");
+    title.className = "title";
+    title.innerText = users[userId]?.name || "Unknown";
+    win.appendChild(title);
+    
+    const video = document.createElement("video");
+    video.autoplay = true;
+    video.muted = userId === localUserId; // mute self
+    video.style.width = "100%";
+    video.style.height = "calc(100% - 24px)";
+    win.appendChild(video);
+    
+    appRoot.appendChild(win);
+    mediaWindows[userId] = { win, video };
+    
+    // Drag behavior
+    let offsetX = 0, offsetY = 0, isDown = false;
+    title.addEventListener("mousedown", e=>{
+        isDown = true;
+        offsetX = e.offsetX;
+        offsetY = e.offsetY;
+    });
+    document.addEventListener("mouseup", ()=>isDown=false);
+    document.addEventListener("mousemove", e=>{
+        if(!isDown) return;
+        win.style.left = (e.clientX - offsetX) + "px";
+        win.style.top = (e.clientY - offsetY) + "px";
+    });
+    
+    return mediaWindows[userId];
+}
+
+// -------------------------
+// WebRTC peer connections
+// -------------------------
+const peerConnections = {};
+const localStream = await navigator.mediaDevices.getUserMedia({video:true,audio:true});
+
+async function initPeer(userId){
+    if(peerConnections[userId]) return peerConnections[userId];
+    
+    const pc = new RTCPeerConnection({
+        iceServers:[{urls:"stun:stun.l.google.com:19302"}]
+    });
+    
+    localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+    
+    pc.ontrack = (event)=>{
+        const media = mediaWindows[userId] || await createMediaWindow(userId);
+        media.video.srcObject = event.streams[0];
+    };
+    
+    pc.onicecandidate = (event)=>{
+        if(event.candidate){
+            broadcast("iceCandidate",{to:userId,candidate:event.candidate});
+        }
+    };
+    
+    peerConnections[userId] = pc;
+    return pc;
+}
+
+// -------------------------
+// WebRTC signaling via BroadcastChannel
+// -------------------------
+bc.onmessage = async e=>{
+    const { type, data } = e.data;
+    
+    if(type==="offer"){
+        const pc = await initPeer(data.from);
+        await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+        broadcast("answer",{to:data.from,answer});
+    }
+    
+    if(type==="answer" && data.to===localUserId){
+        const pc = peerConnections[data.from];
+        if(pc) await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+    }
+    
+    if(type==="iceCandidate" && data.to===localUserId){
+        const pc = peerConnections[data.from];
+        if(pc) await pc.addIceCandidate(data.candidate);
+    }
+};
+
+// Initialize connections for existing users
+Object.keys(users).forEach(userId=>{
+    if(userId!==localUserId) initPeer(userId);
+});
+
+console.log("ULTRA Stage 12 loaded: Admin & Media ready.");
+</script>
+<script>
+// -------------------------
+// ULTRA E2E Chat & State
+// -------------------------
+
+let messageLog = messageLog || [];
+
+// Encrypt messages before sending
+async function encryptMessage(text, counter){
+    const key = await crypto.subtle.importKey(
+        "raw", rootKey, "AES-GCM", false, ["encrypt"]
+    );
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const encoded = new TextEncoder().encode(text);
+    const ct = await crypto.subtle.encrypt({name:"AES-GCM", iv}, key, encoded);
+    return btoa(JSON.stringify({iv:Array.from(iv),ct:Array.from(new Uint8Array(ct)),counter}));
+}
+
+// Decrypt messages
+async function decryptMessage(payload){
+    const {iv, ct} = JSON.parse(atob(payload));
+    const key = await crypto.subtle.importKey(
+        "raw", rootKey, "AES-GCM", false, ["decrypt"]
+    );
+    const pt = await crypto.subtle.decrypt({name:"AES-GCM", iv:new Uint8Array(iv)}, key, new Uint8Array(ct));
+    return new TextDecoder().decode(pt);
+}
+
+// Sending a chat message
+async function sendMessage(text){
+    const counter = messageLog.length;
+    const enc = await encryptMessage(text, counter);
+    broadcast("msg",{from:localUserId,text:enc,counter});
+    messageLog.push({from:localUserId,text, time:Date.now()});
+    renderMessages();
+}
+
+// Rendering messages
+async function renderMessages(){
+    const chatDiv = document.getElementById("chatWindow") || (() => {
+        const div = document.createElement("div");
+        div.id = "chatWindow";
+        div.style.position = "fixed";
+        div.style.bottom = "0";
+        div.style.left = "0";
+        div.style.width = "350px";
+        div.style.height = "300px";
+        div.style.overflowY = "auto";
+        div.style.background = "rgba(0,0,0,0.6)";
+        div.style.color = "#0f0";
+        div.style.fontFamily = "monospace";
+        div.style.padding = "6px";
+        appRoot.appendChild(div);
+        return div;
+    })();
+    
+    chatDiv.innerHTML = "";
+    for(const msg of messageLog){
+        const span = document.createElement("div");
+        if(msg.from===localUserId) span.style.color="#0ff";
+        span.textContent = `${users[msg.from]?.name||msg.from}: ${msg.text}`;
+        chatDiv.appendChild(span);
+    }
+    chatDiv.scrollTop = chatDiv.scrollHeight;
+}
+
+// Receive broadcast messages
+bc.onmessage = async e=>{
+    const { type, data } = e.data;
+    
+    if(type==="msg"){
+        try{
+            const decrypted = await decryptMessage(data.text);
+            messageLog.push({from:data.from,text:decrypted,time:Date.now()});
+            renderMessages();
+        }catch(e){
+            console.warn("Failed decrypt message",e);
+        }
+    }
+};
+
+// -------------------------
+// Persist user layout
+// -------------------------
+function saveLayout(){
+    const layout = {};
+    Object.keys(mediaWindows).forEach(uid=>{
+        const win = mediaWindows[uid].win;
+        layout[uid] = {left:win.style.left,top:win.style.top,width:win.style.width,height:win.style.height};
+    });
+    localStorage.setItem("layout",JSON.stringify(layout));
+}
+
+function restoreLayout(){
+    const layout = JSON.parse(localStorage.getItem("layout")||"{}");
+    Object.keys(layout).forEach(uid=>{
+        if(mediaWindows[uid]){
+            const win = mediaWindows[uid].win;
+            const l = layout[uid];
+            win.style.left = l.left; win.style.top = l.top;
+            win.style.width = l.width; win.style.height = l.height;
+        }
+    });
+}
+
+setInterval(saveLayout, 2000);
+restoreLayout();
+
+// -------------------------
+// Background & Matrix effects
+// -------------------------
+const matrixCanvas = document.createElement("canvas");
+matrixCanvas.style.position="fixed";
+matrixCanvas.style.top=0;matrixCanvas.style.left=0;
+matrixCanvas.style.width="100%";matrixCanvas.style.height="100%";
+matrixCanvas.style.zIndex="-1";
+document.body.appendChild(matrixCanvas);
+
+const ctx = matrixCanvas.getContext("2d");
+let matrixDrops = [];
+function initMatrix(){
+    const width = matrixCanvas.width = window.innerWidth;
+    const height = matrixCanvas.height = window.innerHeight;
+    const cols = Math.floor(width/14);
+    matrixDrops = Array(cols).fill(0);
+}
+window.addEventListener("resize", initMatrix);
+initMatrix();
+
+function drawMatrix(){
+    ctx.fillStyle="rgba(0,0,0,0.05)";
+    ctx.fillRect(0,0,matrixCanvas.width,matrixCanvas.height);
+    ctx.fillStyle="#0f0";
+    ctx.font="14px monospace";
+    matrixDrops.forEach((y,i)=>{
+        const text = String.fromCharCode(0x30A0 + Math.random()*96);
+        ctx.fillText(text,i*14,y);
+        if(y>matrixCanvas.height && Math.random()>0.975) matrixDrops[i]=0;
+        else matrixDrops[i]+=14;
+    });
+    requestAnimationFrame(drawMatrix);
+}
+drawMatrix();
+
+console.log("ULTRA Stage 13 loaded: E2E chat, layout, matrix effects ready.");
+</script>
+<script>
+// -------------------------
+// ULTRA E2E Chat & State
+// -------------------------
+
+let messageLog = messageLog || [];
+
+// Encrypt messages before sending
+async function encryptMessage(text, counter){
+    const key = await crypto.subtle.importKey(
+        "raw", rootKey, "AES-GCM", false, ["encrypt"]
+    );
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const encoded = new TextEncoder().encode(text);
+    const ct = await crypto.subtle.encrypt({name:"AES-GCM", iv}, key, encoded);
+    return btoa(JSON.stringify({iv:Array.from(iv),ct:Array.from(new Uint8Array(ct)),counter}));
+}
+
+// Decrypt messages
+async function decryptMessage(payload){
+    const {iv, ct} = JSON.parse(atob(payload));
+    const key = await crypto.subtle.importKey(
+        "raw", rootKey, "AES-GCM", false, ["decrypt"]
+    );
+    const pt = await crypto.subtle.decrypt({name:"AES-GCM", iv:new Uint8Array(iv)}, key, new Uint8Array(ct));
+    return new TextDecoder().decode(pt);
+}
+
+// Sending a chat message
+async function sendMessage(text){
+    const counter = messageLog.length;
+    const enc = await encryptMessage(text, counter);
+    broadcast("msg",{from:localUserId,text:enc,counter});
+    messageLog.push({from:localUserId,text, time:Date.now()});
+    renderMessages();
+}
+
+// Rendering messages
+async function renderMessages(){
+    const chatDiv = document.getElementById("chatWindow") || (() => {
+        const div = document.createElement("div");
+        div.id = "chatWindow";
+        div.style.position = "fixed";
+        div.style.bottom = "0";
+        div.style.left = "0";
+        div.style.width = "350px";
+        div.style.height = "300px";
+        div.style.overflowY = "auto";
+        div.style.background = "rgba(0,0,0,0.6)";
+        div.style.color = "#0f0";
+        div.style.fontFamily = "monospace";
+        div.style.padding = "6px";
+        appRoot.appendChild(div);
+        return div;
+    })();
+    
+    chatDiv.innerHTML = "";
+    for(const msg of messageLog){
+        const span = document.createElement("div");
+        if(msg.from===localUserId) span.style.color="#0ff";
+        span.textContent = `${users[msg.from]?.name||msg.from}: ${msg.text}`;
+        chatDiv.appendChild(span);
+    }
+    chatDiv.scrollTop = chatDiv.scrollHeight;
+}
+
+// Receive broadcast messages
+bc.onmessage = async e=>{
+    const { type, data } = e.data;
+    
+    if(type==="msg"){
+        try{
+            const decrypted = await decryptMessage(data.text);
+            messageLog.push({from:data.from,text:decrypted,time:Date.now()});
+            renderMessages();
+        }catch(e){
+            console.warn("Failed decrypt message",e);
+        }
+    }
+};
+
+// -------------------------
+// Persist user layout
+// -------------------------
+function saveLayout(){
+    const layout = {};
+    Object.keys(mediaWindows).forEach(uid=>{
+        const win = mediaWindows[uid].win;
+        layout[uid] = {left:win.style.left,top:win.style.top,width:win.style.width,height:win.style.height};
+    });
+    localStorage.setItem("layout",JSON.stringify(layout));
+}
+
+function restoreLayout(){
+    const layout = JSON.parse(localStorage.getItem("layout")||"{}");
+    Object.keys(layout).forEach(uid=>{
+        if(mediaWindows[uid]){
+            const win = mediaWindows[uid].win;
+            const l = layout[uid];
+            win.style.left = l.left; win.style.top = l.top;
+            win.style.width = l.width; win.style.height = l.height;
+        }
+    });
+}
+
+setInterval(saveLayout, 2000);
+restoreLayout();
+
+// -------------------------
+// Background & Matrix effects
+// -------------------------
+const matrixCanvas = document.createElement("canvas");
+matrixCanvas.style.position="fixed";
+matrixCanvas.style.top=0;matrixCanvas.style.left=0;
+matrixCanvas.style.width="100%";matrixCanvas.style.height="100%";
+matrixCanvas.style.zIndex="-1";
+document.body.appendChild(matrixCanvas);
+
+const ctx = matrixCanvas.getContext("2d");
+let matrixDrops = [];
+function initMatrix(){
+    const width = matrixCanvas.width = window.innerWidth;
+    const height = matrixCanvas.height = window.innerHeight;
+    const cols = Math.floor(width/14);
+    matrixDrops = Array(cols).fill(0);
+}
+window.addEventListener("resize", initMatrix);
+initMatrix();
+
+function drawMatrix(){
+    ctx.fillStyle="rgba(0,0,0,0.05)";
+    ctx.fillRect(0,0,matrixCanvas.width,matrixCanvas.height);
+    ctx.fillStyle="#0f0";
+    ctx.font="14px monospace";
+    matrixDrops.forEach((y,i)=>{
+        const text = String.fromCharCode(0x30A0 + Math.random()*96);
+        ctx.fillText(text,i*14,y);
+        if(y>matrixCanvas.height && Math.random()>0.975) matrixDrops[i]=0;
+        else matrixDrops[i]+=14;
+    });
+    requestAnimationFrame(drawMatrix);
+}
+drawMatrix();
+
+console.log("ULTRA Stage 13 loaded: E2E chat, layout, matrix effects ready.");
+</script>
+<script>
+// -------------------------
+// ULTRA Admin & Window Animations
+// -------------------------
+
+// Admin detection
+let roomAdmin = localStorage.getItem("roomAdmin") || null;
+if(!roomAdmin) {
+    roomAdmin = localUserId;
+    localStorage.setItem("roomAdmin", roomAdmin);
+}
+users[roomAdmin] = users[roomAdmin] || {};
+users[roomAdmin].admin = true;
+
+// Add admin badge next to name
+function renderUsers(){
+    const userDiv = document.getElementById("userList") || (()=>{
+        const div = document.createElement("div");
+        div.id="userList";
+        div.style.position="fixed";
+        div.style.top="10px"; div.style.right="10px";
+        div.style.background="rgba(0,0,0,0.6)";
+        div.style.color="#0f0"; div.style.padding="6px";
+        div.style.fontFamily="monospace"; div.style.fontSize="12px";
+        div.style.maxHeight="300px"; div.style.overflowY="auto";
+        appRoot.appendChild(div);
+        return div;
+    })();
+
+    userDiv.innerHTML="";
+    Object.entries(users).forEach(([uid,u])=>{
+        const span = document.createElement("div");
+        span.textContent = u.name || uid;
+        if(u.admin) span.innerHTML += " <span style='color:gold'>★</span>";
+        userDiv.appendChild(span);
+    });
+}
+
+// -------------------------
+// Window animations
+// -------------------------
+function animateWindow(win){
+    win.style.transition = "all 0.2s ease-out";
+    win.addEventListener("mouseenter", ()=>win.style.transform="scale(1.02)");
+    win.addEventListener("mouseleave", ()=>win.style.transform="scale(1)");
+    win.addEventListener("mousedown", ()=>win.style.zIndex=9999);
+    win.addEventListener("mouseup", ()=>win.style.zIndex=1);
+}
+
+// Apply to existing windows
+Object.values(mediaWindows||{}).forEach(w=>animateWindow(w.win));
+
+// -------------------------
+// Window creation helper
+// -------------------------
+function createMediaWindow(uid,label){
+    const win = document.createElement("div");
+    win.className="window";
+    win.style.left=Math.random()*400+"px";
+    win.style.top=Math.random()*200+"px";
+    win.style.width="220px";
+    win.style.height="160px";
+
+    const title = document.createElement("div");
+    title.className="title";
+    title.textContent = label;
+    win.appendChild(title);
+
+    const content = document.createElement("div");
+    content.style.height="calc(100% - 24px)";
+    content.style.overflow="hidden";
+    win.appendChild(content);
+
+    appRoot.appendChild(win);
+
+    // Draggable
+    let offsetX=0, offsetY=0, dragging=false;
+    title.addEventListener("mousedown", e=>{
+        dragging=true;
+        offsetX = e.clientX - win.offsetLeft;
+        offsetY = e.clientY - win.offsetTop;
+        win.style.transition="none";
+    });
+    document.addEventListener("mousemove", e=>{
+        if(dragging){
+            win.style.left = e.clientX - offsetX + "px";
+            win.style.top = e.clientY - offsetY + "px";
+        }
+    });
+    document.addEventListener("mouseup", e=>{
+        if(dragging){
+            dragging=false;
+            win.style.transition="all 0.2s ease-out";
+        }
+    });
+
+    mediaWindows[uid] = {win,content};
+    animateWindow(win);
+    return win;
+}
+
+// -------------------------
+// Add responsive background animations
+// -------------------------
+const bgParticles = [];
+const canvas = document.createElement("canvas");
+canvas.style.position="fixed";
+canvas.style.top=0; canvas.style.left=0;
+canvas.style.width="100%"; canvas.style.height="100%";
+canvas.style.zIndex=-2;
+document.body.appendChild(canvas);
+const ctx2 = canvas.getContext("2d");
+
+function initParticles(){
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    for(let i=0;i<100;i++){
+        bgParticles.push({
+            x:Math.random()*canvas.width,
+            y:Math.random()*canvas.height,
+            vx:(Math.random()-0.5)*0.5,
+            vy:(Math.random()-0.5)*0.5,
+            size:Math.random()*3+1,
+            color:`rgba(0,255,0,${Math.random()})`
+        });
+    }
+}
+window.addEventListener("resize", initParticles);
+initParticles();
+
+function animateParticles(){
+    ctx2.clearRect(0,0,canvas.width,canvas.height);
+    for(const p of bgParticles){
+        p.x+=p.vx; p.y+=p.vy;
+        if(p.x<0)p.x=canvas.width;if(p.x>canvas.width)p.x=0;
+        if(p.y<0)p.y=canvas.height;if(p.y>canvas.height)p.y=0;
+        ctx2.fillStyle=p.color;
+        ctx2.beginPath();
+        ctx2.arc(p.x,p.y,p.size,0,2*Math.PI);
+        ctx2.fill();
+    }
+    requestAnimationFrame(animateParticles);
+}
+animateParticles();
+
+console.log("ULTRA Stage 14 loaded: admin badge, window & background animations ready.");
+</script>
 </body>
-
 </html>
