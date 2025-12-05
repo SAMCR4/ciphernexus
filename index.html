@@ -1,11 +1,11 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Nexus P2P — Chat + Encrypted Files + Video + ACKs</title>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Nexus — Flat Event Bus (Fixed signaling)</title>
 
-<!-- Tailwind -->
+<!-- Tailwind for quick UI -->
 <script src="https://cdn.tailwindcss.com"></script>
 <!-- Font Awesome -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
@@ -16,632 +16,483 @@
 <script src="https://cdn.jsdelivr.net/npm/simple-peer@9/simplepeer.min.js"></script>
 
 <style>
-  body { background:#071026; color:#e6eef8; font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial; padding:18px; }
-  .glass { background: rgba(10,12,20,0.6); border-radius:12px; padding:14px; border:1px solid rgba(255,255,255,0.03); }
-  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, "Roboto Mono", monospace; }
-  .video-container { position: relative; background:#000; border-radius:8px; overflow:hidden; min-height:90px; display:flex; align-items:center; justify-content:center;}
-  .video-container video { width:100%; height:100%; object-fit:cover; }
-  .thumb { max-width:100px; max-height:70px; object-fit:cover; border-radius:6px; }
-  .small { font-size:12px; }
-  .btn { padding:8px 10px; border-radius:8px; cursor:pointer; }
-  .badge { background:rgba(255,255,255,0.04); padding:4px 8px; border-radius:999px; font-size:12px; }
+  body{background:#071026;color:#e6eef8;font-family:Inter,system-ui,Roboto,Helvetica,Arial;padding:18px}
+  .glass{background:rgba(10,12,20,0.6);border-radius:10px;padding:12px;border:1px solid rgba(255,255,255,0.03)}
+  .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Roboto Mono,monospace}
+  .video {border-radius:8px; overflow:hidden; background:#000; min-height:90px; display:flex; align-items:center; justify-content:center}
+  .thumb{max-width:120px; max-height:80px; object-fit:cover; border-radius:6px}
+  .small{font-size:12px}
 </style>
 </head>
 <body>
-<div class="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-6">
-  <!-- left -->
+<div class="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-6">
+  <!-- Controls -->
   <div class="glass col-span-1 space-y-3">
-    <h2 class="text-lg font-bold">NEXUS — P2P All-in-One</h2>
-    <div class="small text-gray-300">No backend required — works on GitHub Pages</div>
+    <h2 class="text-lg font-bold">NEXUS — Fixed Signaling</h2>
+    <div class="small text-gray-300">Flat event bus: room/events — more reliable</div>
 
-    <label class="small block mt-3">Nickname</label>
+    <label class="small block mt-2">Nickname</label>
     <input id="nick" class="w-full p-2 rounded bg-black/20 border border-gray-700" placeholder="alice"/>
 
     <label class="small block mt-2">Room ID</label>
-    <input id="room" class="w-full p-2 rounded bg-black/20 border border-gray-700" placeholder="room-123"/>
+    <input id="room" class="w-full p-2 rounded bg-black/20 border border-gray-700" placeholder="room-1"/>
 
     <label class="small block mt-2">Passkey</label>
     <input id="pass" type="password" class="w-full p-2 rounded bg-black/20 border border-gray-700" placeholder="shared secret"/>
 
     <div class="flex gap-2 mt-3">
-      <button id="joinBtn" class="flex-1 btn bg-gradient-to-r from-sky-400 to-violet-600 text-black font-bold" onclick="Nexus.joinRoom()">Join</button>
-      <button class="btn border" onclick="Nexus.leaveRoom()">Leave</button>
+      <button id="joinBtn" class="flex-1 bg-gradient-to-r from-sky-400 to-violet-600 text-black font-bold rounded p-2" onclick="App.join()">Join</button>
+      <button onclick="App.leave()" class="rounded p-2 border">Leave</button>
     </div>
 
-    <div class="mt-3 small text-gray-300">
-      <div>Peers: <span id="peerCount">0</span></div>
-      <div>Messages: <span id="msgCount">0</span></div>
-    </div>
+    <div class="mt-3 small text-gray-300">Peers: <span id="peerCount">0</span></div>
 
     <div class="mt-3 small">
       <div class="font-semibold">Media</div>
       <div class="flex gap-2 mt-2">
-        <button id="btnCamera" class="btn border" onclick="Nexus.toggleVideo()"><i class="fas fa-video"></i></button>
-        <button id="btnMic" class="btn border" onclick="Nexus.toggleAudio()"><i class="fas fa-microphone"></i></button>
-        <button id="btnHang" class="btn border" onclick="Nexus.stopMedia()">Hangup</button>
+        <button onclick="App.toggleCamera()" class="p-2 rounded border"><i class="fas fa-video"></i></button>
+        <button onclick="App.toggleMic()" class="p-2 rounded border"><i class="fas fa-microphone"></i></button>
+        <button onclick="App.hangup()" class="p-2 rounded border"><i class="fas fa-phone-slash"></i></button>
       </div>
     </div>
 
     <div class="mt-3 small">
       <div class="font-semibold">Files</div>
-      <div id="dropArea" class="mt-2 p-3 border-2 border-dashed border-gray-700 rounded small text-gray-400">Drag & drop files here or use the picker</div>
-      <input id="fileInput" type="file" class="mt-2"/>
-      <div id="uploadProgress" class="mt-2 small hidden">
+      <div id="drop" class="mt-2 p-3 border-2 border-dashed border-gray-700 rounded small text-gray-400">Drag & drop file or use picker</div>
+      <input id="fileInput" type="file" class="mt-2 w-full"/>
+      <div id="uploadArea" class="mt-2 small hidden">
         <div id="uploadText"></div>
-        <div class="w-full bg-gray-800 h-2 rounded mt-1"><div id="uploadBar" class="h-full" style="width:0%; background:linear-gradient(90deg,#00f3ff,#bc13fe)"></div></div>
+        <div class="w-full bg-gray-800 h-2 rounded mt-1"><div id="uploadBar" class="h-full" style="width:0%;background:linear-gradient(90deg,#00f3ff,#bc13fe)"></div></div>
       </div>
-      <button class="btn border mt-2" onclick="Nexus.uploadSelectedFile()">Upload</button>
+      <button onclick="App.uploadFile()" class="mt-2 p-2 rounded border">Upload</button>
     </div>
 
-    <div class="mt-3 small glass p-2 rounded" style="height:220px; overflow:auto;" id="logBox">
-      &gt; Ready.
-    </div>
+    <div id="log" class="mt-3 small glass p-2 rounded" style="height:220px;overflow:auto;">&gt; Ready</div>
   </div>
 
-  <!-- center -->
+  <!-- Chat & Video -->
   <div class="glass col-span-2 p-4 flex flex-col">
-    <div class="flex justify-between items-center">
-      <div>
-        <div class="text-xs text-gray-400">Room</div>
-        <div id="roomLabel" class="mono">—</div>
-      </div>
-      <div>
-        <div class="text-xs text-gray-400">You</div>
-        <div id="nickLabel" class="mono">—</div>
-      </div>
+    <div class="flex justify-between items-center mb-2">
+      <div><div class="small text-gray-400">Room</div><div id="roomLabel" class="mono">-</div></div>
+      <div><div class="small text-gray-400">You</div><div id="nickLabel" class="mono">-</div></div>
     </div>
 
-    <div id="videoGrid" class="grid grid-cols-2 gap-2 mt-3" style="min-height:160px"></div>
+    <div id="videos" class="grid grid-cols-2 gap-2 mb-3"></div>
 
-    <div id="chat" class="flex-1 overflow-auto mt-3 p-3 bg-black/10 rounded small" style="min-height:240px"></div>
+    <div id="chat" class="flex-1 bg-black/10 p-3 rounded overflow-auto small" style="min-height:260px"></div>
 
     <div class="mt-3 flex gap-2">
-      <input id="msgInput" class="flex-1 p-2 rounded bg-black/20 border border-gray-700" placeholder="Type a message..." disabled/>
-      <button id="sendBtn" class="btn border" onclick="Nexus.sendMessage()" disabled><i class="fas fa-paper-plane"></i></button>
+      <input id="msg" class="flex-1 p-2 rounded bg-black/20 border border-gray-700" placeholder="Message..." disabled />
+      <button id="sendBtn" class="p-2 rounded border" onclick="App.sendChat()" disabled><i class="fas fa-paper-plane"></i></button>
     </div>
-    <div class="small text-gray-400 mt-1" id="typingIndicator"></div>
+    <div class="small text-gray-400 mt-1" id="decryptWarning"></div>
   </div>
 
-  <!-- right -->
+  <!-- Users & Files -->
   <div class="glass col-span-1 p-4 space-y-3">
-    <div>
-      <div class="text-xs text-gray-400">Users</div>
-      <div id="usersList" class="mt-2 small bg-black/10 rounded p-2" style="min-height:160px">—</div>
-    </div>
-
-    <div>
-      <div class="text-xs text-gray-400">Files</div>
-      <div id="filesList" class="mt-2 small bg-black/10 rounded p-2 overflow-auto" style="max-height:300px">—</div>
-    </div>
+    <div><div class="small text-gray-400">Users</div><div id="users" class="mt-2 small bg-black/10 rounded p-2">-</div></div>
+    <div><div class="small text-gray-400">Files</div><div id="files" class="mt-2 small bg-black/10 rounded p-2" style="max-height:300px;overflow:auto">-</div></div>
   </div>
 </div>
 
 <script>
-/* Nexus P2P — Combined: chat + file sharing + video + ordering + ACKs + resume
-   - Uses GUN + SEA for P2P graph + signaling
-   - Uses SimplePeer for media connections (signaling via GUN room signals)
-   - Files chunked and stored under room/files/<fileId>/parts/<index> (encrypted)
-   - Messages: encrypted (AES-GCM derived from passkey)
-   - Ordering: per-sender seq stored in localStorage 'nexus_seq_<roomId>'
-   - ACKs: stored under room/acks/<msgId>/<peerNick> = true
-   - Dedup persistence: seen msgIds stored in localStorage 'nexus_seen_<roomId>'
+/* App implementing flat event bus for signaling + encrypted chat + files + video
+   Event structure stored in room.events via GUN:
+     { id: uuid(), from, to|null (null = broadcast), type: 'signal'|'chat'|'file-meta'|'file-part'|'presence'|'typing', payload: {...}, ts }
+   Clients listen to room.events map and process events targeted to them or broadcasts.
 */
 
-const Nexus = {
+async function uuidv4(){
+  // simple uuid
+  return ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g,c=> (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c/4).toString(16));
+}
+
+const App = {
   gun: null,
-  roomNode: null,
-  nick: null, roomId: null, pass: null,
-  aesKey: null, // CryptoKey AES-GCM
-  seenMessages: new Set(),
-  seqCounter: 0,
-  peers: {},            // map: peerNick -> { simplePeer, remoteStream }
-  myStreams: { local:null },
-  fileChunkSize: 500*1024,
-  ackRetries: {},       // msgId -> attempts
-  MAX_RETRIES: 3,
-  init() {
-    // drag-n-drop
-    const drop = document.getElementById('dropArea');
-    drop.addEventListener('dragover', (e)=>{ e.preventDefault(); drop.classList.add('ring-1','ring-sky-400'); });
-    drop.addEventListener('dragleave', ()=>{ drop.classList.remove('ring-1','ring-sky-400'); });
-    drop.addEventListener('drop', (e)=>{ e.preventDefault(); drop.classList.remove('ring-1','ring-sky-400'); const f = e.dataTransfer.files[0]; if(f) { document.getElementById('fileInput').files = e.dataTransfer.files; } });
-    // file input small UX
-    document.getElementById('fileInput').addEventListener('change', ()=> { const f=document.getElementById('fileInput').files[0]; if(f && f.type.startsWith('image/')) this.previewImage(f); });
+  room: null,
+  nick: null,
+  roomId: null,
+  pass: null,
+  aesKey: null,
+  seenEventIds: new Set(),
+  peers: {}, // peerNick -> { simplePeer, stream }
+  localStream: null,
+  fileChunk: 500*1024,
+
+  log(msg){
+    const el = document.getElementById('log'); const d = document.createElement('div'); d.innerText = '> ' + msg; el.appendChild(d); el.scrollTop = el.scrollHeight;
+    console.log('[NEXUS]', msg);
   },
 
-  log(s) { const el = document.getElementById('logBox'); const d = document.createElement('div'); d.innerText = '> ' + s; el.appendChild(d); el.scrollTop = el.scrollHeight; console.log('[NEXUS]', s); },
+  warnDecrypt(msg){
+    document.getElementById('decryptWarning').innerText = msg;
+    setTimeout(()=>{ if(document.getElementById('decryptWarning').innerText===msg) document.getElementById('decryptWarning').innerText = ''; }, 5000);
+  },
 
-  // crypto helpers (derive AES key from passkey)
-  async deriveAESKey(pass) {
+  async deriveKey(pass){
+    // AES-GCM 256 from SHA-256(pass || pepper)
     const enc = new TextEncoder();
-    const passBytes = enc.encode(pass + '|nexus_key_v2'); // pepper
-    const hash = await crypto.subtle.digest('SHA-256', passBytes);
+    const hash = await crypto.subtle.digest('SHA-256', enc.encode(pass + '|nexus_flat_v1'));
     return crypto.subtle.importKey('raw', hash, 'AES-GCM', false, ['encrypt','decrypt']);
   },
-  arrayBufferToBase64(buf) { let binary=''; const bytes = new Uint8Array(buf); for(let i=0;i<bytes.length;i++) binary += String.fromCharCode(bytes[i]); return btoa(binary); },
-  base64ToArrayBuffer(b64) { const binary = atob(b64); const len = binary.length; const bytes = new Uint8Array(len); for(let i=0;i<len;i++) bytes[i]=binary.charCodeAt(i); return bytes.buffer; },
 
-  async encryptArrayBuffer(ab) {
+  arrayBufferToBase64(buf){
+    let binary=''; const bytes=new Uint8Array(buf); for(let i=0;i<bytes.length;i++) binary+=String.fromCharCode(bytes[i]); return btoa(binary);
+  },
+  base64ToArrayBuffer(b64){ const binary = atob(b64); const len = binary.length; const bytes = new Uint8Array(len); for(let i=0;i<len;i++) bytes[i]=binary.charCodeAt(i); return bytes.buffer; },
+
+  async encryptAB(ab){
     const iv = crypto.getRandomValues(new Uint8Array(12));
-    const ct = await crypto.subtle.encrypt({ name:'AES-GCM', iv }, this.aesKey, ab);
+    const ct = await crypto.subtle.encrypt({name:'AES-GCM', iv}, this.aesKey, ab);
     const out = new Uint8Array(iv.byteLength + ct.byteLength);
     out.set(iv,0); out.set(new Uint8Array(ct), iv.byteLength);
     return this.arrayBufferToBase64(out.buffer);
   },
-  async decryptArrayBuffer(b64) {
-    const buf = this.base64ToArrayBuffer(b64);
-    const iv = buf.slice(0,12); const data = buf.slice(12);
-    const pt = await crypto.subtle.decrypt({ name:'AES-GCM', iv:new Uint8Array(iv) }, this.aesKey, data);
-    return pt;
+  async decryptAB(b64){
+    try{
+      const buf = this.base64ToArrayBuffer(b64);
+      const iv = buf.slice(0,12); const data = buf.slice(12);
+      const pt = await crypto.subtle.decrypt({name:'AES-GCM', iv:new Uint8Array(iv)}, this.aesKey, data);
+      return pt;
+    }catch(e){
+      throw e;
+    }
   },
 
-  // local persistent store for seen msg ids and seq counter
-  loadSeen() {
-    try {
-      const k = 'nexus_seen_' + (this.roomId || '');
-      const raw = localStorage.getItem(k);
-      if(raw) {
-        const arr = JSON.parse(raw);
-        arr.forEach(id => this.seenMessages.add(id));
-      }
-    } catch(e){}
-  },
-  saveSeen() {
-    try {
-      const k = 'nexus_seen_' + (this.roomId || '');
-      localStorage.setItem(k, JSON.stringify(Array.from(this.seenMessages).slice(-5000)));
-    } catch(e){}
-  },
-  loadSeq() {
-    try {
-      const k = 'nexus_seq_' + (this.roomId || '');
-      const raw = localStorage.getItem(k);
-      this.seqCounter = raw ? Number(raw) : 0;
-    } catch(e){ this.seqCounter = 0; }
-  },
-  saveSeq() {
-    try { localStorage.setItem('nexus_seq_' + this.roomId, String(this.seqCounter)); } catch(e){}
-  },
-
-  async joinRoom() {
+  async join(){
     const nick = document.getElementById('nick').value.trim();
-    const room = document.getElementById('room').value.trim();
+    const roomId = document.getElementById('room').value.trim();
     const pass = document.getElementById('pass').value;
-    if(!nick||!room||!pass) { alert('Fill nick/room/pass'); return; }
-
-    this.nick = nick; this.roomId = room; this.pass = pass;
+    if(!nick||!roomId||!pass){ alert('fill nick/room/pass'); return; }
+    this.nick = nick; this.roomId = roomId; this.pass = pass;
     document.getElementById('nickLabel').innerText = this.nick;
     document.getElementById('roomLabel').innerText = this.roomId;
 
-    this.log('Initializing GUN and joining room: ' + this.roomId);
-    // init gun with public peers (can add more)
+    this.log('Connecting to GUN relays...');
     this.gun = Gun({ peers: ['https://gun-manhattan.herokuapp.com/gun', 'https://gun-us.herokuapp.com/gun'] });
+    this.aesKey = await this.deriveKey(this.pass);
+    this.room = this.gun.get('nexus::' + this.roomId);
 
-    this.aesKey = await this.deriveAESKey(this.pass);
-    this.roomNode = this.gun.get('nexus-room::' + this.roomId);
-
-    // load persisted seen & seq
-    this.loadSeen(); this.loadSeq();
-
-    // presence
-    this.roomNode.get('presence').get(this.nick).put({ nick:this.nick, ts:Date.now() });
-
-    // presence map subscribes
-    this.roomNode.get('presence').map().on((v,k)=>this.renderUsers());
-
-    // message map subscribes
-    this.roomNode.get('messages').map().on(async (obj,id)=> {
-      if(!obj || !obj.msgId || this.seenMessages.has(obj.msgId)) return;
-      // ordering: store in temp buffer until sequence is contiguous per sender
-      // but to keep code reasonably small we render as messages come (but we preserve dedupe + ack)
-      try {
-        const ab = await this.decryptArrayBuffer(obj.msg);
-        const txt = new TextDecoder().decode(ab);
-        this.seenMessages.add(obj.msgId);
-        this.saveSeen();
-        // send ACK
-        this.roomNode.get('acks').get(obj.msgId).get(this.nick).put(true);
-        // render
-        this.renderMessage(obj.nick, txt, obj.msgId, obj.seq, obj.ts);
-        // update counts
-        this.updateCounts();
-      } catch(e) {
-        // ignore decrypt errors
-      }
+    // listen events bus
+    this.room.get('events').map().on((ev, k) => {
+      if(!ev || !ev.id) return;
+      if(this.seenEventIds.has(ev.id)) return;
+      this.seenEventIds.add(ev.id);
+      // persist seen ids short-term in localStorage (trim later)
+      try{
+        let stored = JSON.parse(localStorage.getItem('nexus_seen_events_'+this.roomId)||'[]');
+        stored.push(ev.id); if(stored.length>2000) stored = stored.slice(-2000);
+        localStorage.setItem('nexus_seen_events_'+this.roomId, JSON.stringify(stored));
+      }catch(e){}
+      // process event
+      this._processEvent(ev);
     });
 
-    // acks subscription (optional for UI)
-    this.roomNode.get('acks').map().on(()=>{ /* we don't render ack list, but sender watches her acks */ });
-
-    // signals for SimplePeer stored under room/signals/<to>/<from> = data
-    this.roomNode.get('signals').map().on((v, key) => {
-      // key is mapping structure used by GUN; value contains objects keyed by 'from' etc.
-      // We'll instead read signaling by querying per-peer signal channel when needed (see signal handler below)
-    });
-
-    // file list
-    this.roomNode.get('files').map().on((meta,fileId)=>{
-      if(!meta || !meta.name) return;
-      this.renderFileEntry(fileId, meta);
-    });
-
-    // typing map
-    this.roomNode.get('typing').map().on((t,k)=> { if(t && t.nick) { document.getElementById('typingIndicator').innerText = t.nick + ' is typing…'; setTimeout(()=>{ if(document.getElementById('typingIndicator').innerText.includes(t.nick)) document.getElementById('typingIndicator').innerText = ''; }, 1200); }});
-
-    // setup signal listener: we use a channel under room/signals/<to>/<from> = { data }
-    // listen to any signals targeted to us
-    this.roomNode.get('signals').get(this.nick).map().on(async (obj, from) => {
-      if(!obj || !obj.data) return;
-      // obj.from = otherNick; obj.data = simple-peer signaling JSON (string)
-      const fromNick = from;
-      try {
-        const data = obj.data;
-        await this._handleSignal(fromNick, data);
-      } catch(e){ console.warn('signal handle error', e); }
-    });
+    // publish presence event (broadcast)
+    const ev = { id: await uuidv4(), from:this.nick, to:null, type:'presence', payload:{ nick:this.nick, ts:Date.now() }, ts:Date.now() };
+    this.room.get('events').set(ev);
+    // also write a presence node so map can be read easily
+    this.room.get('presence').get(this.nick).put({ nick:this.nick, ts:Date.now() });
 
     // enable UI
-    document.getElementById('msgInput').disabled = false;
-    document.getElementById('sendBtn').disabled = false;
+    document.getElementById('msg').disabled = false; document.getElementById('sendBtn').disabled = false;
     document.getElementById('fileInput').disabled = false;
-    document.getElementById('fileInput').addEventListener('change', ()=>this.previewIfImage());
-
-    this.log('Joined. Ready.');
+    this.log('Joined room: ' + this.roomId);
+    // render users periodically
     setTimeout(()=> this.renderUsers(), 800);
+    // restore seen ids from localStorage
+    try{
+      const seen = JSON.parse(localStorage.getItem('nexus_seen_events_'+this.roomId)||'[]');
+      seen.forEach(id=>this.seenEventIds.add(id));
+    }catch(e){}
+    // wire drop
+    const drop = document.getElementById('drop');
+    drop.ondragover = e => { e.preventDefault(); drop.classList.add('ring-1','ring-sky-400'); };
+    drop.ondragleave = e => { drop.classList.remove('ring-1','ring-sky-400'); };
+    drop.ondrop = e => { e.preventDefault(); drop.classList.remove('ring-1','ring-sky-400'); const f = e.dataTransfer.files[0]; if(f) document.getElementById('fileInput').files = e.dataTransfer.files; };
   },
 
-  leaveRoom() {
-    if(!this.roomNode) return;
-    this.roomNode.get('presence').get(this.nick).put(null);
-    this.roomNode = null;
-    this.gun = null;
-    document.getElementById('chat').innerHTML = '';
-    document.getElementById('usersList').innerHTML = '';
-    document.getElementById('filesList').innerHTML = '';
+  leave(){
+    if(!this.room) return;
+    // presence removal
+    const ev = { id: awaitNow(), from:this.nick, to:null, type:'presence-leave', payload:{nick:this.nick, ts:Date.now()}, ts:Date.now() };
+    this.room.get('events').set(ev);
+    this.room.get('presence').get(this.nick).put(null);
     this.log('Left room');
+    // cleanup peers / streams
+    this.hangup();
+    // clear UI
+    document.getElementById('chat').innerHTML = '';
+    document.getElementById('users').innerHTML = '';
   },
 
-  // MESSAGE SEND: includes seq, msgId, timestamp. Then watch for ACKs and retry if necessary.
-  async sendMessage() {
-    const el = document.getElementById('msgInput'); const text = el.value.trim(); if(!text || !this.roomNode) return;
-    el.value = '';
-    // seq
-    this.seqCounter = (this.seqCounter || 0) + 1; this.saveSeq();
-    const seq = this.seqCounter;
-    const msgId = crypto.randomUUID();
-    const ts = Date.now();
-    const ab = new TextEncoder().encode(text);
-    const b64 = await this.encryptArrayBuffer(ab.buffer);
-    const obj = { nick:this.nick, msg:b64, ts, msgId, seq };
-    this.roomNode.get('messages').set(obj);
-    // store attempt data
-    this.ackRetries[msgId] = 0;
-    this._watchAcks(msgId, obj);
-    // locally render immediately
-    this.renderMessage(this.nick, text, msgId, seq, ts);
+  // events processing
+  async _processEvent(ev){
+    if(ev.type === 'presence' || ev.type === 'presence-leave'){
+      // re-render users map
+      this.renderUsers();
+      return;
+    }
+
+    // if to is set and not addressed to me and not broadcast -> ignore
+    if(ev.to && ev.to !== this.nick) return;
+
+    if(ev.type === 'signal'){
+      // payload: { from, to, data (stringified simple-peer signal) }
+      const from = ev.from;
+      const data = ev.payload && ev.payload.data;
+      if(!from || !data) return;
+      // ensure we have a SimplePeer instance for this from
+      if(!this.peers[from]){
+        this.peers[from] = { peer: null, remoteStream: null };
+        // create a non-initiator peer to answer
+        const p = new SimplePeer({ initiator:false, trickle:true, stream: this.localStream || undefined });
+        this.peers[from].peer = p;
+        p.on('signal', sig => this._sendSignal(from, JSON.stringify(sig)));
+        p.on('connect', ()=> this.log('P2P connect with ' + from));
+        p.on('stream', s => { this.peers[from].remoteStream = s; this._renderRemoteStream(s, from); });
+        p.on('close', ()=> { this.log('Peer closed: ' + from); try{ p.destroy(); }catch(e){} delete this.peers[from]; this._removeRemoteStream(from); });
+        p.on('error', e => console.warn('peer error', e));
+      }
+      try { this.peers[from].peer.signal(JSON.parse(data)); } catch(e){ console.warn('apply signal failed', e); }
+      return;
+    }
+
+    if(ev.type === 'chat'){
+      // payload.msg is base64 encrypted AB
+      try{
+        const ab = await this.decryptAB(ev.payload.msg);
+        const txt = new TextDecoder().decode(ab);
+        this._appendChat(ev.from, txt, ev.ts);
+      }catch(e){
+        this.warnDecrypt('Message received but cannot decrypt (wrong passkey?)');
+        console.warn('decrypt fail', e);
+      }
+      return;
+    }
+
+    if(ev.type === 'file-meta'){
+      // payload: { fileId, name, size, parts, uploader }
+      this._renderFileMeta(ev.payload);
+      return;
+    }
+
+    if(ev.type === 'file-part'){
+      // no-op here (parts stored under events — we will fetch by scanning events for file-part with fileId)
+      // we maintain parts as events and will assemble on download
+      return;
+    }
+
+    if(ev.type === 'typing'){
+      document.getElementById('decryptWarning').innerText = ev.from + ' is typing…';
+      setTimeout(()=>{ if(document.getElementById('decryptWarning').innerText.includes(ev.from)) document.getElementById('decryptWarning').innerText = ''; }, 1200);
+      return;
+    }
   },
 
-  // watch acks: will retry re-broadcast up to MAX_RETRIES
-  _watchAcks(msgId, obj) {
-    const check = async () => {
-      const acks = [];
-      // read ack set once
-      this.roomNode.get('acks').get(msgId).map().once((v,k)=>{
-        if(v) acks.push(k);
-      });
-      // after slight delay evaluate
-      setTimeout(async ()=>{
-        // determine how many peers should ack (approx count of presence entries)
-        let peerCount = 0;
-        const presence = [];
-        this.roomNode.get('presence').map().once((v,k)=>{ if(v && v.nick) presence.push(k); });
-        peerCount = presence.length;
-        // Exclude self
-        peerCount = Math.max(0, peerCount - 1);
-        const ackCount = acks.length;
-        if(ackCount >= peerCount || peerCount === 0) {
-          // all good
-          delete this.ackRetries[msgId];
-          return;
-        } else {
-          this.ackRetries[msgId] = (this.ackRetries[msgId] || 0) + 1;
-          if(this.ackRetries[msgId] > this.MAX_RETRIES) {
-            this.log(`Message ${msgId} not ACKed by ${peerCount - ackCount} peers after ${this.MAX_RETRIES} attempts.`);
-            delete this.ackRetries[msgId];
-            return;
-          } else {
-            // Re-broadcast
-            this.log(`Retrying message ${msgId} (attempt ${this.ackRetries[msgId]})`);
-            this.roomNode.get('messages').set(obj);
-            setTimeout(check, 4000 + (this.ackRetries[msgId]*1000));
-          }
-        }
-      }, 600);
-    };
-    setTimeout(check, 2000); // initial check after 2s
-  },
-
-  renderMessage(nick, text, msgId, seq, ts) {
+  _appendChat(from, text, ts){
     const c = document.getElementById('chat');
-    const div = document.createElement('div');
-    div.className = 'mb-2';
-    div.innerHTML = `<div class="text-xs text-gray-400 mono">${this.escape(nick)} <span class="text-[10px] text-gray-500">· ${new Date(ts).toLocaleTimeString()}</span></div>
-                     <div class="p-2 bg-black/20 rounded">${this.escape(text)}</div>`;
-    c.appendChild(div); c.scrollTop = c.scrollHeight;
-    // add to seen set and persist
-    if(msgId) { this.seenMessages.add(msgId); this.saveSeen(); }
-    this.updateCounts();
+    const d = document.createElement('div'); d.className = 'mb-2';
+    d.innerHTML = `<div class="text-xs text-gray-400 mono">${this._esc(from)} <span class="text-[10px] text-gray-500">· ${new Date(ts).toLocaleTimeString()}</span></div>
+                   <div class="p-2 bg-black/20 rounded">${this._esc(text)}</div>`;
+    c.appendChild(d); c.scrollTop = c.scrollHeight;
   },
 
-  escape(s){ return String(s).replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m])); },
+  _esc(s){ return String(s).replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m])); },
 
-  updateCounts() {
-    // messages count
-    let c = 0; this.roomNode.get('messages').map().once((v,id)=>{ if(v && v.msgId) c++; });
-    setTimeout(()=> { document.getElementById('msgCount').innerText = c; }, 400);
-    // peers count
-    const usersDiv = document.getElementById('usersList'); setTimeout(()=> { document.getElementById('peerCount').innerText = usersDiv.children.length || 0; }, 250);
-  },
-
-  // typing
-  sendTyping() {
-    if(!this.roomNode) return;
-    this.roomNode.get('typing').get(this.nick).put({ nick:this.nick, ts:Date.now() });
-  },
-
-  // USERS UI
-  renderUsers() {
-    const out = document.getElementById('usersList'); out.innerHTML = '';
-    this.roomNode.get('presence').map().once((v,k)=>{ if(!v || !v.nick) return; const div=document.createElement('div'); div.className='flex justify-between items-center mb-1'; div.innerHTML = `<div class="mono">${this.escape(v.nick)}</div><div class="text-xs text-gray-400">${new Date(v.ts).toLocaleTimeString()}</div>`; out.appendChild(div); });
-    this.updateCounts();
-  },
-
-  /* ---------------------
-     Media handling with SimplePeer + signaling over GUN
-     --------------------- */
-
-  async toggleVideo() {
-    if(this.myStreams.local && this.myStreams.local.getVideoTracks && this.myStreams.local.getVideoTracks()[0]) {
-      const t = this.myStreams.local.getVideoTracks()[0]; t.enabled = !t.enabled; return;
+  async sendChat(){
+    const txt = document.getElementById('msg').value.trim(); if(!txt) return;
+    document.getElementById('msg').value = '';
+    try{
+      const ab = new TextEncoder().encode(txt);
+      const b64 = await this.encryptAB(ab.buffer);
+      const ev = { id: await uuidv4(), from:this.nick, to:null, type:'chat', payload:{ msg: b64 }, ts:Date.now() };
+      this.room.get('events').set(ev);
+      // local append
+      this._appendChat(this.nick, txt, ev.ts);
+    }catch(e){
+      this.log('encrypt/send failed: ' + e);
     }
-    await this.startMedia({video:true, audio:true});
   },
 
-  async toggleAudio() {
-    if(this.myStreams.local && this.myStreams.local.getAudioTracks && this.myStreams.local.getAudioTracks()[0]) {
-      const t = this.myStreams.local.getAudioTracks()[0]; t.enabled = !t.enabled; return;
-    }
-    await this.startMedia({video:false, audio:true});
+  // signaling helper: send signal event targeted to remoteNick
+  async _sendSignal(remoteNick, dataStr){
+    const ev = { id: await uuidv4(), from:this.nick, to: remoteNick, type:'signal', payload:{ data: dataStr }, ts:Date.now() };
+    this.room.get('events').set(ev);
   },
 
-  async startMedia(constraints={video:true, audio:true}) {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
-      this.myStreams.local = stream;
-      this.addLocalVideo(stream);
-      // initiate SimplePeer with each known presence peer
-      // build simple peer for each found presence entry
-      this.roomNode.get('presence').map().once((v,k)=> {
-        if(!v || !v.nick || v.nick === this.nick) return;
-        // create peer if missing
-        if(!this.peers[v.nick]) this._createPeerFor(v.nick, true, stream);
+  // when starting a call, create initiator SimplePeer to each remote peer
+  async startCall(){
+    // gather presence list
+    const pres = [];
+    this.room.get('presence').map().once((v,k)=>{ if(v && v.nick) pres.push(v.nick); });
+    setTimeout(()=>{ // after small pause create peers
+      pres.forEach(nick => {
+        if(nick === this.nick) return;
+        if(this.peers[nick]) return; // already
+        const p = new SimplePeer({ initiator:true, trickle:true, stream: this.localStream || undefined });
+        this.peers[nick] = { peer: p, remoteStream: null };
+        p.on('signal', sig => this._sendSignal(nick, JSON.stringify(sig)));
+        p.on('connect', ()=> this.log('P2P connect to ' + nick));
+        p.on('stream', s => { this.peers[nick].remoteStream = s; this._renderRemoteStream(s, nick); });
+        p.on('close', ()=> { this.log('Peer closed: ' + nick); try{ p.destroy(); }catch(e){} delete this.peers[nick]; this._removeRemoteStream(nick); });
+        p.on('error', e => console.warn('peer err', e));
       });
-      // Also listen for new presence entries and create peers
-      this.roomNode.get('presence').map().on((v,k) => {
-        if(!v || !v.nick || v.nick === this.nick) return;
-        if(!this.peers[v.nick]) this._createPeerFor(v.nick, true, stream);
-      });
-    } catch(e) { console.warn('media error', e); alert('Media denied or unavailable'); }
+    },300);
   },
 
-  stopMedia() {
-    if(this.myStreams.local) {
-      this.myStreams.local.getTracks().forEach(t => t.stop());
-      this.myStreams.local = null;
-    }
-    // destroy peers
-    for(const p in this.peers) {
-      try { this.peers[p].peer.destroy(); } catch(e) {}
-      this.removeRemoteVideo(p);
-    }
-    this.peers = {};
+  _renderRemoteStream(stream, nick){
+    const id = 'vid_' + nick;
+    if(document.getElementById(id)){ document.getElementById(id).srcObject = stream; return; }
+    const container = document.getElementById('videos');
+    const div = document.createElement('div'); div.className = 'video'; div.innerHTML = `<video id="${id}" autoplay playsinline></video><div class="absolute left-2 bottom-2 px-2 py-1 bg-black/60 text-xs rounded">${this._esc(nick)}</div>`;
+    container.appendChild(div); div.querySelector('video').srcObject = stream;
   },
 
-  addLocalVideo(stream) {
-    // remove existing local preview if any
-    const grid = document.getElementById('videoGrid'); let existing = document.getElementById('vlocal');
-    if(existing) existing.srcObject = stream; else {
-      const div = document.createElement('div'); div.className='video-container'; div.innerHTML = `<video id="vlocal" autoplay muted playsinline></video><div class="absolute left-2 bottom-2 px-2 py-1 bg-black/60 rounded text-xs">LOCAL</div>`;
-      grid.prepend(div); div.querySelector('video').srcObject = stream;
-    }
-  },
-
-  addRemoteVideo(stream, peerNick) {
-    const id = 'r_' + peerNick;
-    const grid = document.getElementById('videoGrid');
-    let el = document.getElementById(id);
-    if(el) { el.srcObject = stream; return; }
-    const div = document.createElement('div'); div.className='video-container';
-    div.innerHTML = `<video id="${id}" autoplay playsinline></video><div class="absolute left-2 bottom-2 px-2 py-1 bg-black/60 rounded text-xs">${this.escape(peerNick)}</div>`;
-    grid.appendChild(div); div.querySelector('video').srcObject = stream;
-  },
-
-  removeRemoteVideo(peerNick) {
-    const id = 'r_' + peerNick;
+  _removeRemoteStream(nick){
+    const id = 'vid_' + nick;
     const el = document.getElementById(id);
     if(el && el.parentNode) el.parentNode.remove();
   },
 
-  // signaling channel handlers for SimplePeer
-  async _createPeerFor(remoteNick, initiator, stream) {
-    // create SimplePeer
-    const p = new SimplePeer({ initiator: initiator, trickle: true, stream: stream || undefined });
-    this.peers[remoteNick] = { peer: p, stream: null, remoteNick };
-    p.on('signal', data => {
-      // send signal via GUN under room/signals/<to>/<from> = { data }
-      const payload = { data: JSON.stringify(data), from: this.nick, ts: Date.now() };
-      this.roomNode.get('signals').get(remoteNick).get(this.nick).put(payload);
-    });
-    p.on('connect', () => { this.log('Peer connect: ' + remoteNick); });
-    p.on('stream', s => {
-      this.peers[remoteNick].stream = s;
-      this.addRemoteVideo(s, remoteNick);
-    });
-    p.on('close', ()=> { this.log('Peer closed: ' + remoteNick); try{ p.destroy(); }catch(e){} delete this.peers[remoteNick]; this.removeRemoteVideo(remoteNick); });
-    p.on('error', (e)=>{ console.warn('peer error', e); });
-    return p;
-  },
-
-  // handle incoming signaling object from remote
-  async _handleSignal(fromNick, dataStr) {
-    // parse
-    let data = dataStr;
-    try { data = JSON.parse(dataStr); } catch(e){ /* maybe already object */ }
-    // find peer instance; if not present create non-initiator (since remote signaled)
-    if(!this.peers[fromNick]) {
-      // create a non-initiator SimplePeer (will answer)
-      this._createPeerFor(fromNick, false, this.myStreams.local || undefined).then(p=>{
-        try { p.signal(data); } catch(e){ console.warn('signal apply failed', e); }
-      });
-    } else {
-      try { this.peers[fromNick].peer.signal(data); } catch(e){ console.warn('signal apply failed', e); }
+  // media controls
+  async toggleCamera(){
+    if(this.localStream && this.localStream.getVideoTracks && this.localStream.getVideoTracks()[0]) {
+      const t = this.localStream.getVideoTracks()[0]; t.enabled = !t.enabled; return;
     }
+    await this._getMedia({video:true, audio:true});
   },
 
-  /* -------------
-     FILE UPLOAD with resume
-     ------------- */
-
-  previewIfImage() {
-    const f = document.getElementById('fileInput').files[0];
-    if(!f) return;
-    this.previewImage(f);
-  },
-
-  previewImage(file) {
-    if(!file.type.startsWith('image/')) return;
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      // show preview in filesList temporarily
-      const container = document.getElementById('filesList');
-      const div = document.createElement('div'); div.className='mb-2';
-      div.innerHTML = `<img src="${e.target.result}" class="thumb mr-2"/><div class="mono">${this.escape(file.name)} (${file.size} bytes)</div>`;
-      container.prepend(div);
-    };
-    reader.readAsDataURL(file);
-  },
-
-  async uploadSelectedFile() {
-    const fi = document.getElementById('fileInput');
-    if(!fi.files || fi.files.length===0) { alert('Choose a file'); return; }
-    const file = fi.files[0];
-    if(!this.roomNode) { alert('Join room first'); return; }
-    const total = file.size;
-    const parts = Math.ceil(total / this.fileChunkSize);
-    const fileId = crypto.randomUUID();
-    this.log(`Uploading ${file.name} as ${fileId} (${parts} parts)`);
-
-    // write metadata
-    this.roomNode.get('files').get(fileId).put({ name:file.name, size:total, uploader:this.nick, created:Date.now(), parts });
-
-    // resume: check which parts present
-    const present = {};
-    let presentCount = 0;
-    for(let i=0;i<parts;i++){
-      // using once to check if part exists
-      this.roomNode.get('files').get(fileId).get('parts').get(i).once((p)=>{
-        if(p && p.data) { present[i] = true; presentCount++; }
-      });
+  async toggleMic(){
+    if(this.localStream && this.localStream.getAudioTracks && this.localStream.getAudioTracks()[0]) {
+      const t = this.localStream.getAudioTracks()[0]; t.enabled = !t.enabled; return;
     }
-    // wait a bit for checks to return
-    await new Promise(r=>setTimeout(r, 600));
+    await this._getMedia({video:false, audio:true});
+  },
 
-    // start reading from first missing part
-    let offset = 0; let idx = 0;
-    while(idx < parts && present[idx]) { offset += Math.min(this.fileChunkSize, total - offset); idx++; }
+  async _getMedia(constraints){
+    try{
+      const s = await navigator.mediaDevices.getUserMedia(constraints);
+      this.localStream = s;
+      // show local preview
+      const localId = 'local_video';
+      if(!document.getElementById(localId)){
+        const cont = document.getElementById('videos');
+        const div = document.createElement('div'); div.className='video'; div.innerHTML = `<video id="${localId}" autoplay muted playsinline></video><div class="absolute left-2 bottom-2 px-2 py-1 bg-black/60 text-xs rounded mono">LOCAL</div>`;
+        cont.prepend(div);
+        div.querySelector('video').srcObject = s;
+      } else document.getElementById(localId).srcObject = s;
+      // start call (create initiator to all peers)
+      this.startCall();
+    }catch(e){ alert('Media access denied or error: ' + e); console.warn(e); }
+  },
 
+  hangup(){
+    if(this.localStream){ this.localStream.getTracks().forEach(t=>t.stop()); this.localStream = null; const el = document.getElementById('local_video'); if(el && el.parentNode) el.parentNode.remove(); }
+    // destroy peers
+    for(const k in this.peers){ try{ this.peers[k].peer.destroy(); }catch(e){} this._removeRemoteStream(k); }
+    this.peers = {};
+  },
+
+  // FILES: upload as events (meta + parts)
+  async uploadFile(){
+    const f = document.getElementById('fileInput').files[0]; if(!f) { alert('Choose file'); return; }
+    if(!this.room) { alert('Join first'); return; }
+    const parts = Math.ceil(f.size / this.fileChunk);
+    const fileId = await uuidv4();
+    // metadata event (broadcast)
+    const meta = { fileId, name: f.name, size: f.size, parts, uploader: this.nick, ts:Date.now() };
+    const metaEv = { id: await uuidv4(), from:this.nick, to:null, type:'file-meta', payload:meta, ts:Date.now() };
+    this.room.get('events').set(metaEv);
+    // upload parts sequentially; encrypt each part
     const reader = new FileReader();
-    reader.onload = async (ev) => {
-      const ab = ev.target.result;
-      const b64 = await this.encryptArrayBuffer(ab);
-      this.roomNode.get('files').get(fileId).get('parts').get(idx).put({ idx, data:b64, size:ab.byteLength });
-      offset += ab.byteLength;
-      idx++;
-      // update UI
-      const pct = Math.floor((offset/total)*100); document.getElementById('uploadBar').style.width = pct + '%'; document.getElementById('uploadText').innerText = `Uploading ${idx}/${parts} (${pct}%)`;
-      if(offset < total) {
-        const slice = file.slice(offset, offset + this.fileChunkSize);
-        reader.readAsArrayBuffer(slice);
-      } else {
-        document.getElementById('uploadText').innerText = `Upload complete`;
-        setTimeout(()=>{ document.getElementById('uploadBar').style.width='0%'; document.getElementById('uploadText').innerText=''; }, 1200);
-        this.log('Upload finished: ' + file.name);
+    let offset=0, idx=0;
+    document.getElementById('uploadArea').classList.remove('hidden');
+    const uploadBar = document.getElementById('uploadBar'), uploadText = document.getElementById('uploadText');
+    reader.onload = async (e) => {
+      const ab = e.target.result;
+      const b64 = await this.encryptAB(ab);
+      const partPayload = { fileId, idx, data: b64, size: ab.byteLength };
+      const partEv = { id: await uuidv4(), from:this.nick, to:null, type:'file-part', payload:partPayload, ts:Date.now() };
+      this.room.get('events').set(partEv);
+      offset += ab.byteLength; idx++;
+      const pct = Math.floor((offset / f.size)*100);
+      uploadBar.style.width = pct + '%'; uploadText.innerText = `Uploading ${idx}/${parts} (${pct}%)`;
+      if(offset < f.size) reader.readAsArrayBuffer(f.slice(offset, offset + this.fileChunk)); else {
+        uploadText.innerText = 'Upload complete'; setTimeout(()=>{ document.getElementById('uploadArea').classList.add('hidden'); uploadBar.style.width='0%'; uploadText.innerText=''; }, 1200);
+        this.log('Upload finished: ' + f.name);
       }
     };
-    reader.onerror = (e)=> this.log('Read error ' + e);
-
-    // start from idx
-    const firstSlice = file.slice(offset, offset + this.fileChunkSize);
-    document.getElementById('uploadProgress').classList.remove('hidden');
-    reader.readAsArrayBuffer(firstSlice);
+    reader.onerror = (e)=> this.log('file read err ' + e);
+    reader.readAsArrayBuffer(f.slice(0, this.fileChunk));
   },
 
-  // Render file entry in UI
-  renderFileEntry(fileId, meta) {
-    if(!meta || !meta.name) return;
-    // avoid duplicates
-    if(document.querySelector(`[data-file="${fileId}"]`)) return;
-    const container = document.getElementById('filesList');
-    const el = document.createElement('div'); el.setAttribute('data-file', fileId); el.className='mb-2 p-2 border rounded bg-black/5';
-    el.innerHTML = `<div class="font-semibold mono">${this.escape(meta.name)}</div><div class="text-xs text-gray-400">by ${this.escape(meta.uploader || 'anon')} — ${meta.size || '?'} bytes</div>
-      <div class="mt-1"><button class="btn border" onclick="Nexus.downloadFile('${fileId}')">Download</button></div>`;
-    container.prepend(el);
-  },
-
-  async downloadFile(fileId) {
-    this.log('Downloading ' + fileId);
-    // read meta
-    this.roomNode.get('files').get(fileId).once(async (meta)=>{
-      if(!meta || !meta.parts) { this.log('No meta/parts'); return; }
-      const parts = meta.parts;
-      const buffers = [];
-      let got = 0;
-      for(let i=0;i<parts;i++){
-        ((idx)=>{
-          this.roomNode.get('files').get(fileId).get('parts').get(idx).once(async (p)=>{
-            if(!p || !p.data) { this.log('Missing part ' + idx); return; }
-            try {
-              const dec = await this.decryptArrayBuffer(p.data);
-              buffers[idx] = new Uint8Array(dec);
-              got++;
-              if(got === parts) {
-                // assemble
-                let totalLen = buffers.reduce((s,b)=>s+b.length,0);
-                const all = new Uint8Array(totalLen); let pos=0; for(const b of buffers){ all.set(b,pos); pos+=b.length; }
-                const blob = new Blob([all]);
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a'); a.href = url; a.download = meta.name || ('file-'+fileId); document.body.appendChild(a); a.click(); a.remove();
-                URL.revokeObjectURL(url);
-                this.log('File ready: '+meta.name);
-              }
-            } catch(e){ this.log('Decrypt part failed (wrong passkey?)'); }
-          });
-        })(i);
-      }
+  // assemble file by scanning recent events for file parts with matching fileId
+  async downloadFile(fileId){
+    this.log('Attempting download: ' + fileId);
+    // Collect meta and parts by scanning recent events under room/events (map)
+    const parts = {};
+    let meta = null;
+    this.room.get('events').map().once((ev, k) => {
+      if(!ev || !ev.type) return;
+      if(ev.type === 'file-meta' && ev.payload && ev.payload.fileId === fileId) meta = ev.payload;
+      if(ev.type === 'file-part' && ev.payload && ev.payload.fileId === fileId) parts[ev.payload.idx] = ev.payload.data;
     });
+    // wait briefly to gather
+    await new Promise(r=>setTimeout(r,750));
+    if(!meta){ this.log('File meta not found yet'); return; }
+    const total = meta.parts;
+    // Ensure we have all parts
+    for(let i=0;i<total;i++){
+      if(typeof parts[i] === 'undefined'){ this.log('Missing part ' + i + ' — try again later'); return; }
+    }
+    // decrypt and concat
+    const bufs = [];
+    for(let i=0;i<total;i++){
+      try{
+        const ab = await this.decryptAB(parts[i]);
+        bufs.push(new Uint8Array(ab));
+      }catch(e){
+        this.warnDecrypt('Cannot decrypt file (wrong passkey?)');
+        console.warn('file decrypt err', e); return;
+      }
+    }
+    let totalLen = bufs.reduce((s,b)=>s+b.length,0);
+    const out = new Uint8Array(totalLen); let pos=0; bufs.forEach(b=>{ out.set(b,pos); pos += b.length; });
+    const blob = new Blob([out]);
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = meta.name || ('file-'+fileId); document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+    this.log('File ready: ' + meta.name);
   },
 
-  // SIGNAL helper for debugging: dumps signals to console (not required)
-  dumpSignals() { this.roomNode.get('signals').map().once((v,k)=>console.log('signal entry',k,v)); }
+  // helpers to render UI
+  renderUsers(){
+    const list = document.getElementById('users'); list.innerHTML = '';
+    this.room.get('presence').map().once((v,k)=>{ if(!v||!v.nick) return; const div=document.createElement('div'); div.className='flex justify-between items-center'; div.innerHTML=`<div class="mono">${this._esc(v.nick)}</div><div class="text-xs text-gray-400">${new Date(v.ts).toLocaleTimeString()}</div>`; list.appendChild(div); });
+    // update peer count
+    setTimeout(()=>{ document.getElementById('peerCount').innerText = document.getElementById('users').children.length; }, 250);
+  },
+  _renderFileMeta(meta){
+    if(!meta || !meta.fileId) return;
+    if(document.querySelector(`[data-file="${meta.fileId}"]`)) return;
+    const files = document.getElementById('files');
+    const div = document.createElement('div'); div.setAttribute('data-file', meta.fileId); div.className='mb-2 p-2 border rounded bg-black/5';
+    div.innerHTML = `<div class="mono font-semibold">${this._esc(meta.name)}</div><div class="text-xs text-gray-400">by ${this._esc(meta.uploader)} · ${meta.size} bytes</div><div class="mt-1"><button class="p-1 rounded border" onclick="App.downloadFile('${meta.fileId}')">Download</button></div>`;
+    files.prepend(div);
+  },
+
+  _esc(s){ return String(s).replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m])); }
 };
 
-// small init
-Nexus.init();
-window.Nexus = Nexus;
+// tiny helper: immediate uuid (sync)
+function awaitNow(){ return Date.now(); }
 
-// wire some UI shortcuts
-document.getElementById('msgInput').addEventListener('keydown', (e)=>{ if(e.key==='Enter' && !e.shiftKey) { Nexus.sendMessage(); e.preventDefault(); } });
-document.getElementById('msgInput').addEventListener('input', ()=> Nexus.sendTyping());
+window.App = App;
+App.log('App ready');
+
+document.getElementById('msg').addEventListener('keydown', e=>{ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); App.sendChat(); } });
+document.getElementById('fileInput').addEventListener('change', ()=>{ const f=document.getElementById('fileInput').files[0]; if(f && f.type.startsWith('image/')){ const r=new FileReader(); r.onload=e=>{ const filesDiv=document.getElementById('files'); const img=document.createElement('img'); img.src=e.target.result; img.className='thumb mr-2'; filesDiv.prepend(img); }; r.readAsDataURL(f); } });
 
 </script>
 </body>
