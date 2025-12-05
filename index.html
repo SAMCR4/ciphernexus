@@ -1,16 +1,16 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ciphernexus | Reliable Mesh</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Ciphernexus | Reliable Mesh (Multi-User)</title>
 
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    
+
     <!-- Icons -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
-    
+
     <!-- PeerJS (WebRTC Signaling) -->
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
 
@@ -40,52 +40,21 @@
     </script>
 
     <style>
-        body {
-            background-color: #020205;
-            color: #e0e0e0;
-            overflow: hidden; 
-        }
-
+        body { background-color: #020205; color: #e0e0e0; overflow: hidden; }
         .glass-panel {
-            background: rgba(20, 20, 35, 0.7);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+            background: rgba(20,20,35,0.7); backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 0 20px rgba(0,0,0,0.5);
         }
-
-        .btn-primary {
-            background: linear-gradient(90deg, #00f3ff 0%, #bc13fe 100%);
-            color: #000;
-            font-weight: bold;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        .video-container {
-            position: relative;
-            background: #000;
-            border-radius: 8px;
-            overflow: hidden;
-            resize: both;
-            min-width: 150px;
-            min-height: 100px;
-            border: 1px solid #333;
-        }
-        .video-container video {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            pointer-events: none;
-        }
-
-        .msg-burn {
-            border-left: 3px solid #ff4d00;
-            background: rgba(255, 77, 0, 0.1) !important;
-        }
+        .btn-primary { background: linear-gradient(90deg,#00f3ff 0%,#bc13fe 100%); color:#000; font-weight:bold; }
+        .video-container { position: relative; background:#000; border-radius:8px; overflow:hidden; resize:both; min-width:150px; min-height:100px; border:1px solid #333; }
+        .video-container video { width:100%; height:100%; object-fit:cover; pointer-events:none; }
+        .msg-burn { border-left: 3px solid #ff4d00; background: rgba(255,77,0,0.1) !important; }
+        .disabled-overlay { opacity: 0.5; pointer-events: none; }
+        .fade-in { animation: fadeIn .18s ease-in; }
+        @keyframes fadeIn { from {opacity:0; transform: translateY(4px)} to {opacity:1; transform:translateY(0)} }
     </style>
 </head>
 <body class="h-screen w-screen text-sm">
-
     <div id="app" class="relative h-full w-full flex flex-col items-center justify-center">
 
         <!-- LOGIN SCREEN -->
@@ -93,9 +62,9 @@
             <div class="glass-panel p-8 rounded-2xl w-96 max-w-[90%] flex flex-col gap-6 relative z-10 border-t-2 border-nexus-neon">
                 <div class="text-center">
                     <h1 class="text-3xl font-bold font-mono text-white tracking-wider">CIPHERNEXUS</h1>
-                    <p class="text-xs text-nexus-neon mt-2 opacity-80">STABLE BUILD // AUTO-RECOVERY</p>
+                    <p class="text-xs text-nexus-neon mt-2 opacity-80">STABLE BUILD // MULTI-USER</p>
                 </div>
-                
+
                 <div class="space-y-4">
                     <div>
                         <label class="text-xs text-gray-400 font-mono">AGENT ID</label>
@@ -121,14 +90,20 @@
 
         <!-- MAIN INTERFACE -->
         <div id="main-ui" class="hidden w-full h-full flex flex-col md:flex-row overflow-hidden relative">
-            
+
             <!-- SIDEBAR -->
             <div class="w-full md:w-64 glass-panel flex flex-col border-r border-gray-800 z-20">
                 <div class="p-4 border-b border-gray-800 flex justify-between items-center bg-black/40">
-                    <h2 class="font-mono font-bold text-nexus-neon">NET.LINK</h2>
-                    <div id="connection-status-icon" class="w-3 h-3 rounded-full bg-red-500 shadow-[0_0_10px_red]" title="Offline"></div>
+                    <div>
+                        <h2 class="font-mono font-bold text-nexus-neon">NET.LINK</h2>
+                        <div class="text-xs text-gray-400 mt-1">ID: <span id="my-peer-id-display" class="font-mono text-[11px]">...</span></div>
+                    </div>
+                    <div>
+                        <div id="connection-status-icon" class="w-3 h-3 rounded-full bg-red-500 shadow-[0_0_10px_red]" title="Offline"></div>
+                        <div id="connection-text" class="text-[10px] text-gray-400 text-right">Idle</div>
+                    </div>
                 </div>
-                
+
                 <div class="flex-1 overflow-y-auto p-4 space-y-3" id="user-list">
                     <div class="text-xs text-gray-500 italic">Waiting for connection...</div>
                 </div>
@@ -140,7 +115,7 @@
                     </div>
                     <div class="flex justify-between">
                         <span class="text-gray-400">STATUS:</span>
-                        <span id="connection-text" class="text-gray-200">Idle</span>
+                        <span id="connection-text-summary" class="text-gray-200">Idle</span>
                     </div>
                     <button onclick="location.reload()" class="w-full text-gray-400 border border-gray-700 rounded p-1 hover:bg-gray-800 mt-2">
                         <i class="fas fa-power-off mr-1"></i> Disconnect
@@ -153,10 +128,10 @@
 
             <!-- CHAT AREA -->
             <div class="flex-1 flex flex-col bg-nexus-dark/80 relative">
-                
+
                 <!-- Video Grid -->
                 <div id="video-grid" class="hidden flex-wrap gap-2 p-2 bg-black/40 min-h-[160px] border-b border-gray-800 overflow-x-auto">
-                    <div id="local-video-container" class="video-container border border-nexus-neon shadow-[0_0_10px_rgba(0,243,255,0.2)]">
+                    <div id="local-video-container" class="video-container border border-nexus-neon shadow-[0_0_10px_rgba(0,243,255,0.2)] hidden">
                         <video id="local-video" muted autoplay playsinline></video>
                         <div class="absolute bottom-1 left-1 text-xs bg-black/70 px-1 text-nexus-neon font-mono">LOCAL</div>
                     </div>
@@ -215,458 +190,681 @@
         </div>
     </div>
 
-    <script>
-        const Nexus = {
-            state: {
-                nick: '',
-                password: '',
-                roomIdHash: '',
-                masterKey: null,
-                peer: null,
-                conn: null,
-                localStream: null,
-                isHost: false,
-                isBurnMode: false,
-                audioContext: null,
-                chatHistory: []
-            },
+<script>
+const Nexus = {
+    state: {
+        nick: '',
+        password: '',
+        roomIdHash: '',
+        masterKey: null,
+        peer: null,
+        // multiple connections stored here: peerId -> DataConnection
+        connections: {},
+        // information map for peers (peerId -> {nick})
+        peersInfo: {},
+        localStream: null,
+        isHost: false,
+        isBurnMode: false,
+        audioContext: null,
+        chatHistory: [],
+        files: {},   // receptacles for in-progress file transfer
+        calls: {}    // call objects if needed
+    },
 
-            // --- LOGGER ---
-            log(msg, type = 'info') {
-                const logs = document.getElementById('login-logs');
-                const div = document.createElement('div');
-                div.className = type === 'error' ? 'text-red-400' : 'text-nexus-neon';
-                div.innerText = `> ${msg}`;
-                logs.appendChild(div);
-                logs.scrollTop = logs.scrollHeight;
-                console.log(`[Nexus] ${msg}`);
-            },
+    // --- LOGGER ---
+    log(msg, type = 'info') {
+        const logs = document.getElementById('login-logs');
+        const div = document.createElement('div');
+        div.className = type === 'error' ? 'text-red-400' : 'text-nexus-neon';
+        div.innerText = `> ${msg}`;
+        logs.appendChild(div);
+        logs.scrollTop = logs.scrollHeight;
+        console.log(`[Nexus] ${msg}`);
+    },
 
-            // --- CRYPTO ---
-            async hashString(str) {
-                const enc = new TextEncoder();
-                const hashBuffer = await crypto.subtle.digest('SHA-256', enc.encode(str));
-                const hashArray = Array.from(new Uint8Array(hashBuffer));
-                // Return only first 16 alphanumeric characters for PeerJS ID safety
-                return hashArray.map(b => b.toString(16).padStart(2, '0')).join('').substring(0, 20);
-            },
+    // --- CRYPTO ---
+    async hashString(str) {
+        const enc = new TextEncoder();
+        const hashBuffer = await crypto.subtle.digest('SHA-256', enc.encode(str));
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        return hashArray.map(b => b.toString(16).padStart(2,'0')).join('').substring(0,20);
+    },
 
-            async deriveKey(password) {
-                const enc = new TextEncoder();
-                const keyMaterial = await window.crypto.subtle.importKey(
-                    "raw", enc.encode(password), { name: "PBKDF2" }, false, ["deriveKey"]
-                );
-                return await window.crypto.subtle.deriveKey(
-                    { name: "PBKDF2", salt: enc.encode("nexus_salt_v3"), iterations: 100000, hash: "SHA-256" },
-                    keyMaterial, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]
-                );
-            },
+    async deriveKey(password) {
+        const enc = new TextEncoder();
+        const keyMaterial = await window.crypto.subtle.importKey("raw", enc.encode(password), { name: "PBKDF2" }, false, ["deriveKey"]);
+        return await window.crypto.subtle.deriveKey({ name: "PBKDF2", salt: enc.encode("nexus_salt_v3"), iterations: 100000, hash: "SHA-256" }, keyMaterial, { name: "AES-GCM", length: 256 }, false, ["encrypt","decrypt"]);
+    },
 
-            async encrypt(data) {
-                if (!this.state.masterKey) return null;
-                const enc = new TextEncoder();
-                const iv = window.crypto.getRandomValues(new Uint8Array(12));
-                const encodedData = typeof data === 'string' ? enc.encode(data) : data;
-                const ciphertext = await window.crypto.subtle.encrypt({ name: "AES-GCM", iv: iv }, this.state.masterKey, encodedData);
-                const buffer = new Uint8Array(iv.byteLength + ciphertext.byteLength);
-                buffer.set(iv, 0);
-                buffer.set(new Uint8Array(ciphertext), iv.byteLength);
-                return buffer; 
-            },
+    async encrypt(data) {
+        if (!this.state.masterKey) return null;
+        const enc = new TextEncoder();
+        const iv = window.crypto.getRandomValues(new Uint8Array(12));
+        const encodedData = typeof data === 'string' ? enc.encode(data) : data;
+        const ciphertext = await window.crypto.subtle.encrypt({ name: "AES-GCM", iv: iv }, this.state.masterKey, encodedData);
+        const buffer = new Uint8Array(iv.byteLength + ciphertext.byteLength);
+        buffer.set(iv, 0);
+        buffer.set(new Uint8Array(ciphertext), iv.byteLength);
+        return buffer;
+    },
 
-            async decrypt(buffer) {
-                if (!this.state.masterKey) return null;
-                try {
-                    const iv = buffer.slice(0, 12);
-                    const data = buffer.slice(12);
-                    return await window.crypto.subtle.decrypt({ name: "AES-GCM", iv: iv }, this.state.masterKey, data);
-                } catch (e) { return null; }
-            },
+    async decrypt(buffer) {
+        if (!this.state.masterKey) return null;
+        try {
+            const iv = buffer.slice(0, 12);
+            const data = buffer.slice(12);
+            return await window.crypto.subtle.decrypt({ name: "AES-GCM", iv: iv }, this.state.masterKey, data);
+        } catch (e) { return null; }
+    },
 
-            // --- INIT ---
-            async initSession() {
-                const nick = document.getElementById('nickname-input').value;
-                const pass = document.getElementById('password-input').value;
-                const btn = document.getElementById('join-btn');
+    // --- INIT ---
+    async initSession() {
+        const nick = document.getElementById('nickname-input').value.trim();
+        const pass = document.getElementById('password-input').value;
+        const btn = document.getElementById('join-btn');
 
-                if (!nick || !pass) {
-                    this.log("Credentials missing.", "error");
-                    return;
-                }
+        if (!nick || !pass) {
+            this.log("Credentials missing.", "error");
+            return;
+        }
 
-                btn.disabled = true;
-                this.state.nick = nick;
-                this.state.password = pass;
-                
-                this.log("Deriving Keys...");
-                this.state.masterKey = await this.deriveKey(pass);
+        btn.disabled = true;
+        this.state.nick = nick;
+        this.state.password = pass;
 
-                // Create Deterministic ID (No special chars)
-                const hash = await this.hashString(pass);
-                this.state.roomIdHash = `nx${hash}`; // "nx" prefix ensures valid ID
+        this.log("Deriving Keys...");
+        this.state.masterKey = await this.deriveKey(pass);
 
-                await this.loadHistoryFromStorage();
+        const hash = await this.hashString(pass);
+        this.state.roomIdHash = `nx${hash}`;
 
-                this.log(`Room ID: ${this.state.roomIdHash}`);
-                this.log("Contacting Peer Network...");
+        await this.loadHistoryFromStorage();
 
-                // STUN servers are critical for connecting host<->guest
-                const peerConfig = {
-                    debug: 2,
-                    config: {
-                        iceServers: [
-                            { urls: 'stun:stun.l.google.com:19302' },
-                            { urls: 'stun:global.stun.twilio.com:3478' }
-                        ]
-                    }
-                };
+        this.log(`Room ID: ${this.state.roomIdHash}`);
+        this.log("Contacting Peer Network...");
 
-                // ATTEMPT 1: Try to be HOST
-                const peer = new Peer(this.state.roomIdHash, peerConfig);
-
-                peer.on('open', (id) => {
-                    this.log("Successfully claimed Room Host.");
-                    this.finalizeLogin(peer, true);
-                });
-
-                peer.on('error', (err) => {
-                    if (err.type === 'unavailable-id') {
-                        this.log("Room ID taken. Host exists. Joining as GUEST...");
-                        // ATTEMPT 2: Join as GUEST with random ID
-                        const guestPeer = new Peer(null, peerConfig);
-                        guestPeer.on('open', (id) => {
-                             this.log(`Guest ID: ${id}`);
-                             this.finalizeLogin(guestPeer, false);
-                        });
-                        guestPeer.on('error', (e) => this.log(`Guest Error: ${e.type}`, "error"));
-                    } else {
-                        this.log(`Network Error: ${err.type}`, "error");
-                        btn.disabled = false;
-                        btn.innerText = "RETRY";
-                    }
-                });
-            },
-
-            finalizeLogin(peerInstance, isHost) {
-                this.state.peer = peerInstance;
-                this.state.isHost = isHost;
-
-                document.getElementById('login-screen').classList.add('hidden');
-                document.getElementById('main-ui').classList.remove('hidden');
-                document.getElementById('my-peer-id-display').innerText = this.state.peer.id;
-                document.getElementById('my-role-display').innerText = isHost ? "HOST" : "GUEST";
-                
-                // Event Handlers
-                this.state.peer.on('connection', (conn) => this.handleIncomingConnection(conn));
-                this.state.peer.on('call', (call) => this.handleIncomingCall(call));
-
-                if (!isHost) {
-                    this.connectToPeer(this.state.roomIdHash);
-                } else {
-                    this.appendSystemMessage("Room Host Active. Waiting for peers...");
-                    document.getElementById('connection-text').innerText = "Listening...";
-                }
-            },
-
-            // --- CONNECT LOGIC (FIXED) ---
-            connectToPeer(targetId) {
-                this.appendSystemMessage(`Connecting to Host (${targetId})...`);
-                document.getElementById('connection-text').innerText = "Dialing...";
-                
-                // Reliable: true fixes many ordering issues
-                const conn = this.state.peer.connect(targetId, { reliable: true });
-
-                // Connection Timeout Fix
-                const timeout = setTimeout(() => {
-                    if (!conn.open) {
-                        this.appendSystemMessage("⚠️ Connection timed out. Host may be ghost/stale.");
-                        this.appendSystemMessage("Tip: Both users should refresh and try again.");
-                    }
-                }, 8000);
-
-                conn.on('open', async () => {
-                    clearTimeout(timeout);
-                    this.state.conn = conn;
-                    this.setOnline(true);
-                    
-                    const payload = JSON.stringify({ type: 'handshake', nick: this.state.nick });
-                    conn.send(await this.encrypt(payload));
-                });
-
-                conn.on('data', async (data) => this.handleData(data));
-                conn.on('close', () => this.setOnline(false));
-                conn.on('error', (err) => {
-                    this.appendSystemMessage(`Connection Error: ${err}`);
-                    this.setOnline(false);
-                });
-            },
-
-            handleIncomingConnection(conn) {
-                this.state.conn = conn;
-                conn.on('open', () => this.setOnline(true));
-                conn.on('data', async (data) => this.handleData(data));
-                conn.on('close', () => this.setOnline(false));
-            },
-
-            setOnline(isOnline) {
-                const el = document.getElementById('connection-status-icon');
-                const txt = document.getElementById('connection-text');
-                const area = document.getElementById('input-area');
-                
-                if (isOnline) {
-                    el.className = "w-3 h-3 rounded-full bg-nexus-success shadow-[0_0_10px_#00ff9d]";
-                    txt.innerText = "Encrypted Link Active";
-                    area.classList.remove('disabled-overlay');
-                    document.getElementById('msg-input').disabled = false;
-                    document.getElementById('send-btn').disabled = false;
-                    document.getElementById('send-btn').classList.add('text-nexus-neon');
-                    document.getElementById('msg-input').placeholder = "Encrypted message...";
-                    this.appendSystemMessage("--- SECURE CONNECTION ESTABLISHED ---");
-                } else {
-                    el.className = "w-3 h-3 rounded-full bg-red-500 shadow-[0_0_10px_red]";
-                    txt.innerText = "Disconnected";
-                    area.classList.add('disabled-overlay');
-                }
-            },
-
-            async handleData(arrayBuffer) {
-                if (arrayBuffer instanceof Blob) arrayBuffer = await arrayBuffer.arrayBuffer();
-                const decrypted = await this.decrypt(new Uint8Array(arrayBuffer));
-                if (!decrypted) return;
-
-                const dec = new TextDecoder();
-                const msgObj = JSON.parse(dec.decode(decrypted));
-
-                if (msgObj.type === 'chat') {
-                    this.appendMessage(msgObj.nick, msgObj.text, false, msgObj.mode);
-                    if (msgObj.mode !== 'burn') this.saveMessageToHistory(msgObj);
-                } else if (msgObj.type === 'handshake') {
-                    this.addSidebarUser(msgObj.nick);
-                } else if (msgObj.type === 'file-start') {
-                    this.startFileReceive(msgObj);
-                } else if (msgObj.type === 'file-chunk') {
-                    this.receiveFileChunk(msgObj);
-                }
-            },
-
-            // --- UI & FEATURES ---
-            toggleBurnMode() {
-                this.state.isBurnMode = !this.state.isBurnMode;
-                const btn = document.getElementById('burn-toggle');
-                const input = document.getElementById('msg-input');
-                
-                if (this.state.isBurnMode) {
-                    btn.classList.add('text-nexus-burn', 'animate-pulse');
-                    btn.classList.remove('text-gray-500');
-                    input.classList.add('burn-mode-active');
-                    input.placeholder = "BURNING: Message will delete shortly...";
-                } else {
-                    btn.classList.remove('text-nexus-burn', 'animate-pulse');
-                    btn.classList.add('text-gray-500');
-                    input.classList.remove('burn-mode-active');
-                    input.placeholder = "Encrypted message...";
-                }
-            },
-
-            async sendMessage(e) {
-                e.preventDefault();
-                const input = document.getElementById('msg-input');
-                const text = input.value;
-                if (!text || !this.state.conn || !this.state.conn.open) return;
-
-                const mode = this.state.isBurnMode ? 'burn' : 'standard';
-                const msgObj = { type: 'chat', nick: this.state.nick, text: text, mode: mode, timestamp: Date.now() };
-
-                const encrypted = await this.encrypt(JSON.stringify(msgObj));
-                this.state.conn.send(encrypted);
-                this.appendMessage('ME', text, true, mode);
-                
-                if (mode !== 'burn') this.saveMessageToHistory(msgObj);
-                input.value = '';
-            },
-
-            appendMessage(nick, text, isMe, mode) {
-                const box = document.getElementById('chat-box');
-                const div = document.createElement('div');
-                div.className = `flex flex-col ${isMe ? 'items-end' : 'items-start'} mb-2 fade-in`;
-                
-                let bubbleClass = isMe 
-                    ? 'bg-nexus-purple text-white rounded-br-none' 
-                    : 'bg-gray-800 border border-gray-700 text-gray-200 rounded-bl-none';
-                
-                if (mode === 'burn') {
-                    bubbleClass += ' msg-burn text-orange-200';
-                    div.classList.add('burn-container'); 
-                }
-
-                const bubble = document.createElement('div');
-                bubble.className = `max-w-[80%] p-3 rounded-lg break-words shadow-lg ${bubbleClass}`;
-                bubble.innerHTML = `<div class="text-[10px] opacity-70 mb-1 font-mono flex justify-between gap-2"><span>${nick}</span>${mode === 'burn' ? '<i class="fas fa-fire"></i>' : ''}</div><div>${this.escapeHtml(text)}</div>`;
-                
-                div.appendChild(bubble);
-                box.appendChild(div);
-                box.scrollTop = box.scrollHeight;
-
-                if (mode === 'burn') {
-                    const burns = document.querySelectorAll('.burn-container');
-                    if (burns.length > 5) burns[0].remove(); 
-                }
-            },
-
-            // --- HISTORY ---
-            getStorageKey() { return 'nexus_hist_' + this.state.roomIdHash; },
-            
-            async saveMessageToHistory(msgObj) {
-                this.state.chatHistory.push(msgObj);
-                if (this.state.chatHistory.length > 50) this.state.chatHistory.shift();
-                const jsonStr = JSON.stringify(this.state.chatHistory);
-                const encryptedBuf = await this.encrypt(jsonStr);
-                localStorage.setItem(this.getStorageKey(), this.arrayBufferToBase64(encryptedBuf));
-            },
-
-            async loadHistoryFromStorage() {
-                const storedB64 = localStorage.getItem(this.getStorageKey());
-                if (!storedB64) return;
-                try {
-                    const buf = this.base64ToArrayBuffer(storedB64);
-                    const decryptedBuf = await this.decrypt(new Uint8Array(buf));
-                    if (!decryptedBuf) throw new Error("Key mismatch");
-                    
-                    const history = JSON.parse(new TextDecoder().decode(decryptedBuf));
-                    this.state.chatHistory = history;
-                    history.forEach(msg => this.appendMessage(msg.nick === this.state.nick ? 'ME' : msg.nick, msg.text, msg.nick === this.state.nick, msg.mode));
-                    this.appendSystemMessage("--- History Loaded ---");
-                } catch (e) { console.log("History load error", e); }
-            },
-
-            clearHistory() {
-                localStorage.removeItem(this.getStorageKey());
-                this.state.chatHistory = [];
-                document.getElementById('chat-box').innerHTML = '';
-                this.appendSystemMessage("History cleared.");
-            },
-
-            // --- MEDIA & FILE UTILS (Shortened for brevity but fully functional) ---
-            async toggleVideo() {
-               if(!this.state.localStream) await this.startMedia();
-               const trk = this.state.localStream.getVideoTracks()[0]; trk.enabled = !trk.enabled;
-            },
-            async toggleAudio() {
-               if(!this.state.localStream) await this.startMedia();
-               const trk = this.state.localStream.getAudioTracks()[0]; trk.enabled = !trk.enabled;
-               if(trk.enabled) this.startVisualizer(this.state.localStream);
-            },
-            async startMedia() {
-                try {
-                    const stream = await navigator.mediaDevices.getUserMedia({video:true, audio:true});
-                    this.state.localStream = stream;
-                    document.getElementById('local-video').srcObject = stream;
-                    document.getElementById('video-grid').classList.remove('hidden');
-                    document.getElementById('video-grid').classList.add('flex');
-                    if(this.state.conn) this.state.peer.call(this.state.conn.peer, stream).on('stream', s => this.addRemoteVideo(s));
-                    this.startVisualizer(stream);
-                } catch(e) { alert("Media access denied"); }
-            },
-            handleIncomingCall(call) {
-                navigator.mediaDevices.getUserMedia({video:true, audio:true}).then(stream => {
-                    this.state.localStream = stream;
-                    document.getElementById('local-video').srcObject = stream;
-                    document.getElementById('video-grid').classList.remove('hidden');
-                    document.getElementById('video-grid').classList.add('flex');
-                    call.answer(stream);
-                    call.on('stream', s => this.addRemoteVideo(s));
-                    this.startVisualizer(stream);
-                });
-            },
-            addRemoteVideo(stream) {
-                 if(document.getElementById('remote-video')) return;
-                 const div = document.createElement('div');
-                 div.className = 'video-container border border-nexus-purple';
-                 div.innerHTML = `<video id="remote-video" autoplay playsinline></video><div class="absolute bottom-1 left-1 text-xs bg-black/70 px-1 text-nexus-purple font-mono">REMOTE</div>`;
-                 document.getElementById('video-grid').appendChild(div);
-                 div.querySelector('video').srcObject = stream;
-            },
-            
-            // --- FILE ---
-            async handleFileUpload(input) {
-                const file = input.files[0];
-                if (!file || !this.state.conn) return;
-                this.state.conn.send(await this.encrypt(JSON.stringify({type:'file-start', name:file.name, size:file.size, mime:file.type, nick:this.state.nick})));
-                this.appendSystemMessage(`📤 Uploading ${file.name}...`);
-                document.getElementById('file-progress-container').classList.remove('hidden');
-                
-                const chunkSize = 16384; let offset = 0; const reader = new FileReader();
-                reader.onload = async (e) => {
-                    const b64 = this.arrayBufferToBase64(e.target.result);
-                    this.state.conn.send(await this.encrypt(JSON.stringify({type:'file-chunk', data:b64})));
-                    offset += e.target.result.byteLength;
-                    this.updateProgressBar(offset, file.size);
-                    if (offset < file.size) reader.readAsArrayBuffer(file.slice(offset, offset + chunkSize));
-                    else { setTimeout(() => document.getElementById('file-progress-container').classList.add('hidden'), 2000); this.appendSystemMessage(`✅ Sent ${file.name}`); }
-                };
-                reader.readAsArrayBuffer(file.slice(0, chunkSize));
-            },
-            startFileReceive(meta) {
-                this.state.files['curr'] = {meta, received:0, buffer:[]};
-                this.appendSystemMessage(`📥 Receiving ${meta.name}...`);
-                document.getElementById('file-progress-container').classList.remove('hidden');
-            },
-            receiveFileChunk(d) {
-                const cur = this.state.files['curr']; if(!cur) return;
-                const bytes = this.base64ToArrayBuffer(d.data); cur.buffer.push(bytes); cur.received += bytes.byteLength;
-                this.updateProgressBar(cur.received, cur.meta.size);
-                if(cur.received >= cur.meta.size) {
-                    const url = URL.createObjectURL(new Blob(cur.buffer, {type:cur.meta.mime}));
-                    this.appendSystemMessage(`File Ready: ${cur.meta.name}`);
-                    const box = document.getElementById('chat-box');
-                    const div = document.createElement('div'); div.className = 'text-center my-2';
-                    div.innerHTML = `<a href="${url}" download="${cur.meta.name}" class="text-nexus-neon underline bg-gray-800 p-2 rounded">Download ${cur.meta.name}</a>`;
-                    box.appendChild(div);
-                    document.getElementById('file-progress-container').classList.add('hidden');
-                }
-            },
-
-            // --- VISUALIZER ---
-            startVisualizer(stream) {
-                const cvs = document.getElementById('audio-viz'); cvs.classList.remove('hidden');
-                if(!this.state.audioContext) this.state.audioContext = new (window.AudioContext||window.webkitAudioContext)();
-                const src = this.state.audioContext.createMediaStreamSource(stream);
-                const anl = this.state.audioContext.createAnalyser(); anl.fftSize=64; src.connect(anl);
-                const buf = anl.frequencyBinCount; const data = new Uint8Array(buf); const ctx = cvs.getContext('2d');
-                const draw = () => {
-                    requestAnimationFrame(draw); anl.getByteFrequencyData(data);
-                    ctx.clearRect(0,0,cvs.width,cvs.height);
-                    let x=0; const w = (cvs.width/buf)*2.5;
-                    for(let i=0; i<buf; i++) {
-                        const h = data[i]/2;
-                        ctx.fillStyle = `rgb(${h+100},50,255)`; ctx.fillRect(x,cvs.height-h,w,h);
-                        x += w+1;
-                    }
-                }; draw();
-            },
-
-            // --- HELPER ---
-            appendSystemMessage(t) {
-                const b = document.getElementById('chat-box'); const d = document.createElement('div');
-                d.className = 'text-center my-2'; d.innerHTML = `<span class="text-xs text-nexus-neon bg-nexus-neon/10 px-2 py-1 rounded border border-nexus-neon/20">${t}</span>`;
-                b.appendChild(d); b.scrollTop = b.scrollHeight;
-            },
-            addSidebarUser(n) {
-                 const l = document.getElementById('user-list');
-                 if(l.innerText.includes("Waiting")) l.innerHTML = '';
-                 const d = document.createElement('div'); d.className='flex items-center gap-2 p-2 rounded bg-white/5';
-                 d.innerHTML = `<div class="w-2 h-2 rounded-full bg-nexus-success"></div><span>${this.escapeHtml(n)}</span>`;
-                 l.appendChild(d);
-            },
-            escapeHtml(t) { return t.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m])); },
-            arrayBufferToBase64(b) { let bin=''; const y=new Uint8Array(b); for(let i=0;i<y.byteLength;i++) bin+=String.fromCharCode(y[i]); return window.btoa(bin); },
-            base64ToArrayBuffer(a) { const s=window.atob(a); const y=new Uint8Array(s.length); for(let i=0;i<s.length;i++) y[i]=s.charCodeAt(i); return y.buffer; },
-            updateProgressBar(c,t) { document.getElementById('file-bar').style.width = `${Math.floor((c/t)*100)}%`; }
+        const peerConfig = {
+            debug: 2,
+            config: {
+                iceServers: [
+                    { urls: 'stun:stun.l.google.com:19302' },
+                    { urls: 'stun:global.stun.twilio.com:3478' }
+                ]
+            }
         };
 
-        window.Nexus = Nexus;
-    </script>
+        // Attempt to become host by claiming the deterministic ID
+        const peer = new Peer(this.state.roomIdHash, peerConfig);
+
+        peer.on('open', (id) => {
+            this.log("Successfully claimed Room Host.");
+            this.finalizeLogin(peer, true);
+        });
+
+        peer.on('error', (err) => {
+            if (err && err.type === 'unavailable-id') {
+                this.log("Room ID taken. Host exists. Joining as GUEST...");
+                const guestPeer = new Peer(null, peerConfig);
+                guestPeer.on('open', (id) => {
+                    this.log(`Guest ID: ${id}`);
+                    this.finalizeLogin(guestPeer, false);
+                });
+                guestPeer.on('error', (e) => { this.log(`Guest Error: ${e.type || e}`, "error"); btn.disabled = false; });
+            } else {
+                this.log(`Network Error: ${err && (err.type || err)}`, "error");
+                btn.disabled = false;
+                btn.innerText = "RETRY";
+            }
+        });
+    },
+
+    finalizeLogin(peerInstance, isHost) {
+        this.state.peer = peerInstance;
+        this.state.isHost = isHost;
+
+        document.getElementById('login-screen').classList.add('hidden');
+        document.getElementById('main-ui').classList.remove('hidden');
+        document.getElementById('my-peer-id-display').innerText = this.state.peer.id;
+        document.getElementById('my-role-display').innerText = isHost ? "HOST" : "GUEST";
+
+        // Accept multiple incoming connections
+        this.state.peer.on('connection', (conn) => this.handleIncomingConnection(conn));
+        this.state.peer.on('call', (call) => this.handleIncomingCall(call));
+
+        if (!isHost) {
+            // Guest connects to host
+            this.connectToPeer(this.state.roomIdHash);
+        } else {
+            this.appendSystemMessage("Room Host Active. Waiting for peers...");
+            document.getElementById('connection-text').innerText = "Listening...";
+            document.getElementById('connection-text-summary').innerText = "Host (listening)";
+            // Host UI is considered online for local interactions
+            this.setOnline(false); // stays disconnected until someone links; still host
+        }
+    },
+
+    // --- CONNECT LOGIC (MULTI-CONNECTION) ---
+    connectToPeer(targetId) {
+        this.appendSystemMessage(`Connecting to Host (${targetId})...`);
+        document.getElementById('connection-text').innerText = "Dialing...";
+
+        const conn = this.state.peer.connect(targetId, { reliable: true });
+
+        const timeout = setTimeout(() => {
+            if (!conn.open) {
+                this.appendSystemMessage("⚠️ Connection timed out. Host may be unreachable.");
+                this.appendSystemMessage("Tip: Refresh and try again.");
+            }
+        }, 8000);
+
+        conn.on('open', async () => {
+            clearTimeout(timeout);
+            // For guests, only one connection: host
+            this.state.connections[conn.peer] = conn;
+            this.state.conn = conn; // convenience for legacy references (guest)
+            this.setOnline(true);
+                
+            // send handshake
+            const payload = JSON.stringify({ type: 'handshake', nick: this.state.nick, peerId: this.state.peer.id });
+            conn.send(await this.encrypt(payload));
+
+            // handlers
+            conn.on('data', async (data) => this.handleData(data, conn.peer));
+            conn.on('close', () => this.handleConnectionClose(conn.peer));
+            conn.on('error', (err) => {
+                this.appendSystemMessage(`Connection Error (host): ${err}`);
+                this.handleConnectionClose(conn.peer);
+            });
+        });
+
+        conn.on('error', (err) => { this.log('Conn error: ' + (err && (err.type || err)), 'error'); });
+    },
+
+    handleIncomingConnection(conn) {
+        // Host receives incoming connections here (or guest receiving an incoming from someone else in odd cases)
+        // Store connection in map on open
+        conn.on('open', async () => {
+            this.state.connections[conn.peer] = conn;
+            this.log(`Connection opened: ${conn.peer}`);
+            // If host, show listening -> someone connected
+            if (this.state.isHost) {
+                document.getElementById('connection-text').innerText = "Peers connected";
+                document.getElementById('connection-text-summary').innerText = `${Object.keys(this.state.connections).length} peer(s)`;
+                // If local UI disabled, enable input for host when at least one connection exists
+                this.setOnline(true);
+            } else {
+                // non-host incoming: treat same as connectToPeer
+                this.setOnline(true);
+            }
+
+            // bind handlers with knowledge of sender peer id
+            conn.on('data', async (data) => this.handleData(data, conn.peer));
+            conn.on('close', () => this.handleConnectionClose(conn.peer));
+            conn.on('error', (err) => { this.appendSystemMessage(`Connection Error: ${err}`); this.handleConnectionClose(conn.peer); });
+        });
+
+        // If there was a handshake already sent, it will be processed in data handler
+    },
+
+    handleConnectionClose(peerId) {
+        // remove connection & UI cleanup
+        delete this.state.connections[peerId];
+        delete this.state.peersInfo[peerId];
+        this.removeSidebarUser(peerId);
+        this.removeRemoteVideo(peerId);
+        if (Object.keys(this.state.connections).length === 0) {
+            this.setOnline(false);
+            if (this.state.isHost) {
+                document.getElementById('connection-text').innerText = "Listening...";
+                document.getElementById('connection-text-summary').innerText = "Host (listening)";
+            }
+        } else {
+            document.getElementById('connection-text-summary').innerText = `${Object.keys(this.state.connections).length} peer(s)`;
+        }
+        this.appendSystemMessage(`Peer disconnected: ${peerId}`);
+    },
+
+    setOnline(isOnline) {
+        const el = document.getElementById('connection-status-icon');
+        const txt = document.getElementById('connection-text');
+        const area = document.getElementById('input-area');
+
+        if (isOnline) {
+            el.className = "w-3 h-3 rounded-full bg-nexus-success shadow-[0_0_10px_#00ff9d]";
+            txt.innerText = "Encrypted Link Active";
+            area.classList.remove('disabled-overlay');
+            document.getElementById('msg-input').disabled = false;
+            document.getElementById('send-btn').disabled = false;
+            document.getElementById('send-btn').classList.add('text-nexus-neon');
+            document.getElementById('msg-input').placeholder = "Encrypted message...";
+            this.appendSystemMessage("--- SECURE CONNECTION ESTABLISHED ---");
+        } else {
+            el.className = "w-3 h-3 rounded-full bg-red-500 shadow-[0_0_10px_red]";
+            txt.innerText = this.state.isHost ? "Listening (no peers)" : "Disconnected";
+            area.classList.add('disabled-overlay');
+            document.getElementById('msg-input').disabled = true;
+            document.getElementById('send-btn').disabled = true;
+            document.getElementById('send-btn').classList.remove('text-nexus-neon');
+            document.getElementById('msg-input').placeholder = "Waiting for connection...";
+        }
+    },
+
+    // handleData now receives senderId so host can broadcast appropriately
+    async handleData(arrayBufferOrBlob, senderPeerId) {
+        if (arrayBufferOrBlob instanceof Blob) arrayBufferOrBlob = await arrayBufferOrBlob.arrayBuffer();
+        const decrypted = await this.decrypt(new Uint8Array(arrayBufferOrBlob));
+        if (!decrypted) return;
+
+        const dec = new TextDecoder();
+        const msgObj = JSON.parse(dec.decode(decrypted));
+
+        // If guest sends to host: senderPeerId is guest peer id
+        // If host sends to guest: senderPeerId is host peer id (for guests)
+        if (msgObj.type === 'chat') {
+            // if host received chat from guest -> append locally (as host) and broadcast to other guests
+            if (this.state.isHost) {
+                // show the message on host UI as coming from the guest
+                this.appendMessage(msgObj.nick, msgObj.text, false, msgObj.mode);
+                // relay to all other guests (except original sender)
+                const encrypted = await this.encrypt(JSON.stringify(msgObj));
+                this.broadcastToConnections(encrypted, senderPeerId);
+                // save history on host side
+                if (msgObj.mode !== 'burn') this.saveMessageToHistory(msgObj);
+            } else {
+                // guest receiving a chat broadcast from host (or relay) -> display
+                this.appendMessage(msgObj.nick, msgObj.text, false, msgObj.mode);
+                if (msgObj.mode !== 'burn') this.saveMessageToHistory(msgObj);
+            }
+        } else if (msgObj.type === 'handshake') {
+            // handshake contains nick and peerId of sender
+            const pId = msgObj.peerId || senderPeerId;
+            const nick = msgObj.nick || 'Unknown';
+            this.state.peersInfo[pId] = { nick };
+            this.addSidebarUser(pId, nick);
+
+            // If host: acknowledge to the new peer with host's own handshake so guest sees host info
+            if (this.state.isHost) {
+                const conn = this.state.connections[senderPeerId];
+                if (conn && conn.open) {
+                    const payload = JSON.stringify({ type: 'handshake', nick: this.state.nick, peerId: this.state.peer.id });
+                    conn.send(await this.encrypt(payload));
+                }
+            }
+        } else if (msgObj.type === 'file-start') {
+            // Host should relay file-start to other guests
+            if (this.state.isHost) {
+                // create receiving place on host UI for display & relay header to others
+                this.appendSystemMessage(`📥 Receiving ${msgObj.name} from ${msgObj.nick}...`);
+                const encrypted = await this.encrypt(JSON.stringify(msgObj));
+                this.broadcastToConnections(encrypted, senderPeerId);
+                // prepare file box for host if it wanted to save copies; skipping heavy host file assembly for now
+            } else {
+                // guest receiving a file-start relay -> prepare receiver
+                this.startFileReceive(msgObj);
+            }
+        } else if (msgObj.type === 'file-chunk') {
+            if (this.state.isHost) {
+                // relayed chunk must be forwarded to all other guests except origin
+                const encrypted = await this.encrypt(JSON.stringify(msgObj));
+                this.broadcastToConnections(encrypted, senderPeerId);
+                // host could optionally buffer file, but we'll rely on relayed stream to guests
+            } else {
+                // guest receives file chunk
+                this.receiveFileChunk(msgObj);
+            }
+        }
+    },
+
+    // sendMessage now broadcasts correctly: guests send to host; host broadcasts to all guests
+    async sendMessage(e) {
+        e.preventDefault();
+        const input = document.getElementById('msg-input');
+        const text = input.value;
+        if (!text) return;
+
+        const mode = this.state.isBurnMode ? 'burn' : 'standard';
+        const msgObj = { type: 'chat', nick: this.state.nick, text: text, mode: mode, timestamp: Date.now() };
+
+        const encrypted = await this.encrypt(JSON.stringify(msgObj));
+
+        if (this.state.isHost) {
+            // Host: append then broadcast to all guests
+            this.appendMessage('ME (Host)', text, true, mode);
+            if (mode !== 'burn') this.saveMessageToHistory(msgObj);
+            this.broadcastToConnections(encrypted, null);
+        } else {
+            // Guest: send to host only (the host will relay to others)
+            const hostConn = this.state.connections[this.state.roomIdHash] || this.state.conn;
+            if (!hostConn || !hostConn.open) { this.appendSystemMessage("Can't send: not connected to host."); return; }
+            hostConn.send(encrypted);
+            this.appendMessage('ME', text, true, mode);
+            if (mode !== 'burn') this.saveMessageToHistory(msgObj);
+        }
+
+        input.value = '';
+    },
+
+    // Broadcast helper used by host
+    broadcastToConnections(encryptedBuffer, exceptPeerId = null) {
+        for (const pid in this.state.connections) {
+            if (!this.state.connections.hasOwnProperty(pid)) continue;
+            if (exceptPeerId && pid === exceptPeerId) continue;
+            const conn = this.state.connections[pid];
+            if (conn && conn.open) {
+                try { conn.send(encryptedBuffer); } catch (e) { console.warn("Broadcast send failed to", pid, e); }
+            }
+        }
+    },
+
+    appendMessage(nick, text, isMe, mode) {
+        const box = document.getElementById('chat-box');
+        const div = document.createElement('div');
+        div.className = `flex flex-col ${isMe ? 'items-end' : 'items-start'} mb-2 fade-in`;
+
+        let bubbleClass = isMe
+            ? 'bg-nexus-purple text-white rounded-br-none'
+            : 'bg-gray-800 border border-gray-700 text-gray-200 rounded-bl-none';
+
+        if (mode === 'burn') {
+            bubbleClass += ' msg-burn text-orange-200';
+            div.classList.add('burn-container');
+        }
+
+        const bubble = document.createElement('div');
+        bubble.className = `max-w-[80%] p-3 rounded-lg break-words shadow-lg ${bubbleClass}`;
+        bubble.innerHTML = `<div class="text-[10px] opacity-70 mb-1 font-mono flex justify-between gap-2"><span>${this.escapeHtml(nick)}</span>${mode === 'burn' ? '<i class="fas fa-fire"></i>' : ''}</div><div>${this.escapeHtml(text)}</div>`;
+
+        div.appendChild(bubble);
+        box.appendChild(div);
+        box.scrollTop = box.scrollHeight;
+
+        if (mode === 'burn') {
+            const burns = document.querySelectorAll('.burn-container');
+            if (burns.length > 5) burns[0].remove();
+        }
+    },
+
+    toggleBurnMode() {
+        this.state.isBurnMode = !this.state.isBurnMode;
+        const btn = document.getElementById('burn-toggle');
+        const input = document.getElementById('msg-input');
+
+        if (this.state.isBurnMode) {
+            btn.classList.add('text-nexus-burn', 'animate-pulse');
+            btn.classList.remove('text-gray-500');
+            input.classList.add('burn-mode-active');
+            input.placeholder = "BURNING: Message will delete shortly...";
+        } else {
+            btn.classList.remove('text-nexus-burn', 'animate-pulse');
+            btn.classList.add('text-gray-500');
+            input.classList.remove('burn-mode-active');
+            input.placeholder = "Encrypted message...";
+        }
+    },
+
+    // --- HISTORY ---
+    getStorageKey() { return 'nexus_hist_' + this.state.roomIdHash; },
+
+    async saveMessageToHistory(msgObj) {
+        this.state.chatHistory.push(msgObj);
+        if (this.state.chatHistory.length > 50) this.state.chatHistory.shift();
+        const jsonStr = JSON.stringify(this.state.chatHistory);
+        const encryptedBuf = await this.encrypt(jsonStr);
+        localStorage.setItem(this.getStorageKey(), this.arrayBufferToBase64(encryptedBuf));
+    },
+
+    async loadHistoryFromStorage() {
+        const storedB64 = localStorage.getItem(this.getStorageKey());
+        if (!storedB64) return;
+        try {
+            const buf = this.base64ToArrayBuffer(storedB64);
+            const decryptedBuf = await this.decrypt(new Uint8Array(buf));
+            if (!decryptedBuf) throw new Error("Key mismatch");
+            const history = JSON.parse(new TextDecoder().decode(decryptedBuf));
+            this.state.chatHistory = history;
+            history.forEach(msg => this.appendMessage(msg.nick === this.state.nick ? 'ME' : msg.nick, msg.text, msg.nick === this.state.nick, msg.mode));
+            this.appendSystemMessage("--- History Loaded ---");
+        } catch (e) { console.log("History load error", e); }
+    },
+
+    clearHistory() {
+        localStorage.removeItem(this.getStorageKey());
+        this.state.chatHistory = [];
+        document.getElementById('chat-box').innerHTML = '';
+        this.appendSystemMessage("History cleared.");
+    },
+
+    // --- MEDIA & FILES (MULTI-Peer) ---
+    async toggleVideo() {
+       if (!this.state.localStream) await this.startMedia();
+       else {
+           const trks = this.state.localStream.getVideoTracks();
+           if (trks && trks[0]) trks[0].enabled = !trks[0].enabled;
+       }
+    },
+    async toggleAudio() {
+       if (!this.state.localStream) await this.startMedia();
+       else {
+           const trks = this.state.localStream.getAudioTracks();
+           if (trks && trks[0]) {
+               trks[0].enabled = !trks[0].enabled;
+               if (trks[0].enabled) this.startVisualizer(this.state.localStream);
+           }
+       }
+    },
+
+    async startMedia() {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ video:true, audio:true });
+            this.state.localStream = stream;
+            document.getElementById('local-video').srcObject = stream;
+            document.getElementById('local-video-container').classList.remove('hidden');
+            document.getElementById('video-grid').classList.remove('hidden');
+            document.getElementById('video-grid').classList.add('flex');
+
+            // If host: call all connected peers
+            if (this.state.isHost) {
+                for (const pid in this.state.connections) {
+                    if (!this.state.connections.hasOwnProperty(pid)) continue;
+                    try {
+                        const call = this.state.peer.call(pid, stream);
+                        // store call for cleanup if needed
+                        this.state.calls[pid] = call;
+                        call.on('stream', s => this.addRemoteVideo(s, pid));
+                        call.on('close', () => this.removeRemoteVideo(pid));
+                    } catch (e) { console.warn("call to", pid, "failed", e); }
+                }
+            } else {
+                // guest: call the host so host can receive our stream
+                const hostConn = this.state.connections[this.state.roomIdHash] || this.state.conn;
+                if (hostConn && hostConn.open) {
+                    const call = this.state.peer.call(hostConn.peer, stream);
+                    this.state.calls[hostConn.peer] = call;
+                    call.on('stream', s => this.addRemoteVideo(s, hostConn.peer));
+                    call.on('close', () => this.removeRemoteVideo(hostConn.peer));
+                }
+            }
+
+            this.startVisualizer(stream);
+        } catch (e) {
+            alert("Media access denied or unavailable");
+        }
+    },
+
+    handleIncomingCall(call) {
+        // Answer incoming calls with our local stream (or obtain one)
+        if (this.state.localStream) {
+            call.answer(this.state.localStream);
+            call.on('stream', s => this.addRemoteVideo(s, call.peer));
+            this.state.calls[call.peer] = call;
+        } else {
+            navigator.mediaDevices.getUserMedia({ video:true, audio:true }).then(stream => {
+                this.state.localStream = stream;
+                document.getElementById('local-video').srcObject = stream;
+                document.getElementById('local-video-container').classList.remove('hidden');
+                call.answer(stream);
+                call.on('stream', s => this.addRemoteVideo(s, call.peer));
+                this.state.calls[call.peer] = call;
+                this.startVisualizer(stream);
+            }).catch(() => {
+                // If user denies media, answer without stream (audio/video disabled)
+                call.answer();
+                call.on('stream', s => this.addRemoteVideo(s, call.peer));
+                this.state.calls[call.peer] = call;
+            });
+        }
+    },
+
+    addRemoteVideo(stream, peerId) {
+        const id = `remote-video-${peerId}`;
+        if (document.getElementById(id)) {
+            document.getElementById(id).srcObject = stream;
+            return;
+        }
+        const div = document.createElement('div');
+        div.className = 'video-container border border-nexus-purple';
+        div.innerHTML = `<video id="${id}" autoplay playsinline></video><div class="absolute bottom-1 left-1 text-xs bg-black/70 px-1 text-nexus-purple font-mono">${this.escapeHtml(this.state.peersInfo[peerId] ? this.state.peersInfo[peerId].nick : peerId)}</div>`;
+        document.getElementById('video-grid').appendChild(div);
+        div.querySelector('video').srcObject = stream;
+        document.getElementById('video-grid').classList.remove('hidden');
+    },
+
+    removeRemoteVideo(peerId) {
+        const id = `remote-video-${peerId}`;
+        const el = document.getElementById(id);
+        if (el) {
+            const parent = el.parentElement;
+            if (parent) parent.remove();
+        }
+    },
+
+    async handleFileUpload(input) {
+        const file = input.files[0];
+        if (!file) return;
+
+        // guests/senders send file-start to host; host relays to others.
+        const meta = { type:'file-start', name:file.name, size:file.size, mime:file.type, nick:this.state.nick, timestamp:Date.now() };
+        const encryptedMeta = await this.encrypt(JSON.stringify(meta));
+
+        if (this.state.isHost) {
+            // host: treat as if host is sending file to all peers
+            this.appendSystemMessage(`📤 Host is sending ${file.name}...`);
+            this.broadcastToConnections(encryptedMeta, null);
+        } else {
+            const hostConn = this.state.connections[this.state.roomIdHash] || this.state.conn;
+            if (!hostConn || !hostConn.open) { this.appendSystemMessage("Can't send file: not connected to host."); return; }
+            hostConn.send(encryptedMeta);
+            this.appendSystemMessage(`📤 Uploading ${file.name} to host...`);
+        }
+
+        // read chunks and send
+        const chunkSize = 16384;
+        let offset = 0;
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            const b64 = this.arrayBufferToBase64(e.target.result);
+            const chunkMsg = { type:'file-chunk', data:b64, partSize: e.target.result.byteLength };
+            const encChunk = await this.encrypt(JSON.stringify(chunkMsg));
+            if (this.state.isHost) {
+                this.broadcastToConnections(encChunk, null);
+            } else {
+                const hostConn = this.state.connections[this.state.roomIdHash] || this.state.conn;
+                hostConn.send(encChunk);
+            }
+
+            offset += e.target.result.byteLength;
+            this.updateProgressBar(offset, file.size);
+
+            if (offset < file.size) {
+                reader.readAsArrayBuffer(file.slice(offset, offset + chunkSize));
+            } else {
+                setTimeout(() => document.getElementById('file-progress-container').classList.add('hidden'), 2000);
+                this.appendSystemMessage(`✅ Sent ${file.name}`);
+            }
+        };
+        document.getElementById('file-progress-container').classList.remove('hidden');
+        reader.readAsArrayBuffer(file.slice(0, chunkSize));
+    },
+
+    startFileReceive(meta) {
+        this.state.files['curr'] = { meta, received: 0, buffer: [] };
+        this.appendSystemMessage(`📥 Receiving ${meta.name}...`);
+        document.getElementById('file-progress-container').classList.remove('hidden');
+    },
+
+    receiveFileChunk(d) {
+        const cur = this.state.files['curr']; if (!cur) return;
+        const bytes = this.base64ToArrayBuffer(d.data);
+        cur.buffer.push(bytes);
+        cur.received += bytes.byteLength;
+        this.updateProgressBar(cur.received, cur.meta.size);
+        if (cur.received >= cur.meta.size) {
+            const url = URL.createObjectURL(new Blob(cur.buffer, { type: cur.meta.mime }));
+            this.appendSystemMessage(`File Ready: ${cur.meta.name}`);
+            const box = document.getElementById('chat-box');
+            const div = document.createElement('div'); div.className = 'text-center my-2';
+            div.innerHTML = `<a href="${url}" download="${cur.meta.name}" class="text-nexus-neon underline bg-gray-800 p-2 rounded">Download ${cur.meta.name}</a>`;
+            box.appendChild(div);
+            document.getElementById('file-progress-container').classList.add('hidden');
+            delete this.state.files['curr'];
+        }
+    },
+
+    // --- VISUALIZER ---
+    startVisualizer(stream) {
+        const cvs = document.getElementById('audio-viz'); cvs.classList.remove('hidden');
+        if (!this.state.audioContext) this.state.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const src = this.state.audioContext.createMediaStreamSource(stream);
+        const anl = this.state.audioContext.createAnalyser(); anl.fftSize = 64; src.connect(anl);
+        const buf = anl.frequencyBinCount; const data = new Uint8Array(buf); const ctx = cvs.getContext('2d');
+        const draw = () => {
+            requestAnimationFrame(draw); anl.getByteFrequencyData(data);
+            ctx.clearRect(0,0,cvs.width,cvs.height);
+            let x=0; const w = (cvs.width/buf)*2.5;
+            for (let i=0;i<buf;i++) {
+                const h = data[i]/2;
+                ctx.fillStyle = `rgb(${h+100},50,255)`; ctx.fillRect(x,cvs.height-h,w,h);
+                x += w+1;
+            }
+        }; draw();
+    },
+
+    // --- UI helpers ---
+    appendSystemMessage(t) {
+        const b = document.getElementById('chat-box'); const d = document.createElement('div');
+        d.className = 'text-center my-2'; d.innerHTML = `<span class="text-xs text-nexus-neon bg-nexus-neon/10 px-2 py-1 rounded border border-nexus-neon/20">${t}</span>`;
+        b.appendChild(d); b.scrollTop = b.scrollHeight;
+    },
+
+    addSidebarUser(peerId, nick) {
+         const l = document.getElementById('user-list');
+         if (l.innerText.includes("Waiting")) l.innerHTML = '';
+         // prevent duplicates
+         if (document.querySelector(`[data-peer="${peerId}"]`)) return;
+         const d = document.createElement('div'); d.className='flex items-center gap-2 p-2 rounded bg-white/5';
+         d.setAttribute('data-peer', peerId);
+         d.innerHTML = `<div class="w-2 h-2 rounded-full bg-nexus-success"></div><span>${this.escapeHtml(nick || peerId)}</span>`;
+         l.appendChild(d);
+    },
+
+    removeSidebarUser(peerId) {
+        const el = document.querySelector(`[data-peer="${peerId}"]`);
+        if (el) el.remove();
+        if (!document.getElementById('user-list').children.length) {
+            document.getElementById('user-list').innerHTML = '<div class="text-xs text-gray-500 italic">Waiting for connection...</div>';
+        }
+    },
+
+    escapeHtml(t) { return String(t).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m])); },
+    arrayBufferToBase64(b) { let bin=''; const y=new Uint8Array(b); for(let i=0;i<y.byteLength;i++) bin+=String.fromCharCode(y[i]); return window.btoa(bin); },
+    base64ToArrayBuffer(a) { const s=window.atob(a); const y=new Uint8Array(s.length); for(let i=0;i<s.length;i++) y[i]=s.charCodeAt(i); return y.buffer; },
+    updateProgressBar(c,t) { document.getElementById('file-bar').style.width = `${Math.floor((c/t)*100)}%`; },
+
+    // convenience for user to inspect connections map (dev)
+    debugConnections() { console.log("connections:", Object.keys(this.state.connections)); }
+};
+
+window.Nexus = Nexus;
+</script>
 </body>
 </html>
-
-
