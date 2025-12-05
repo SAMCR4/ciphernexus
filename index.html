@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ciphernexus | Auto-Join Rooms</title>
+    <title>Ciphernexus | Stable</title>
 
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -13,10 +13,6 @@
     
     <!-- PeerJS (WebRTC Signaling) -->
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-    
-    <!-- QR Tools -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 
     <script>
         tailwind.config = {
@@ -60,15 +56,6 @@
             box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
         }
 
-        .neon-border {
-            box-shadow: 0 0 5px rgba(0, 243, 255, 0.2), inset 0 0 5px rgba(0, 243, 255, 0.1);
-            border: 1px solid rgba(0, 243, 255, 0.3);
-        }
-        
-        .neon-text {
-            text-shadow: 0 0 5px rgba(0, 243, 255, 0.5);
-        }
-
         .btn-primary {
             background: linear-gradient(90deg, #00f3ff 0%, #bc13fe 100%);
             color: #000;
@@ -82,10 +69,7 @@
             transform: translateY(-1px);
         }
 
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: rgba(0, 243, 255, 0.3); border-radius: 3px; }
-
+        /* Scanline Animation */
         @keyframes scanline {
             0% { transform: translateY(-100%); }
             100% { transform: translateY(100%); }
@@ -111,11 +95,16 @@
             height: 100%;
             object-fit: cover;
         }
+        
+        /* Disabled state for inputs */
+        .disabled-overlay {
+            opacity: 0.5;
+            pointer-events: none;
+        }
     </style>
 </head>
 <body class="h-screen w-screen text-sm">
 
-    <!-- APP CONTAINER -->
     <div id="app" class="relative h-full w-full flex flex-col items-center justify-center">
 
         <!-- LOGIN SCREEN -->
@@ -123,59 +112,57 @@
             <div class="scan-overlay"></div>
             <div class="glass-panel p-8 rounded-2xl w-96 max-w-[90%] flex flex-col gap-6 relative z-10">
                 <div class="text-center">
-                    <h1 class="text-3xl font-bold font-mono text-white tracking-wider neon-text">CIPHERNEXUS</h1>
-                    <p class="text-xs text-nexus-neon mt-2 opacity-80">E2E ENCRYPTED // AUTO-ROOMS</p>
+                    <h1 class="text-3xl font-bold font-mono text-white tracking-wider text-shadow-neon">CIPHERNEXUS</h1>
+                    <p class="text-xs text-nexus-neon mt-2 opacity-80">SECURE P2P MESH</p>
                 </div>
                 
                 <div class="space-y-4">
                     <div>
                         <label class="text-xs text-gray-400 font-mono">AGENT ID (NICKNAME)</label>
-                        <input type="text" id="nickname-input" class="w-full bg-black/50 border border-gray-700 rounded p-3 text-white focus:border-nexus-neon outline-none transition" placeholder="Enter alias...">
+                        <input type="text" id="nickname-input" class="w-full bg-black/50 border border-gray-700 rounded p-3 text-white focus:border-nexus-neon outline-none" placeholder="Enter alias...">
                     </div>
                     <div>
                         <label class="text-xs text-gray-400 font-mono">ROOM PASSWORD</label>
-                        <input type="password" id="password-input" class="w-full bg-black/50 border border-gray-700 rounded p-3 text-white focus:border-nexus-purple outline-none transition" placeholder="Users with same pass will connect">
+                        <input type="password" id="password-input" class="w-full bg-black/50 border border-gray-700 rounded p-3 text-white focus:border-nexus-purple outline-none" placeholder="Same password = Same room">
                     </div>
                 </div>
 
                 <div class="space-y-3">
-                    <button onclick="Nexus.initSession()" class="btn-primary w-full p-3 rounded shadow-lg">
-                        <i class="fas fa-satellite-dish mr-2"></i> Join Room
+                    <button onclick="Nexus.initSession()" id="join-btn" class="btn-primary w-full p-3 rounded shadow-lg">
+                        <i class="fas fa-satellite-dish mr-2"></i> CONNECT
                     </button>
-                    <div id="status-msg" class="text-center text-xs text-nexus-neon h-4"></div>
+                    <div id="status-msg" class="text-center text-xs text-nexus-neon h-4 font-mono"></div>
                 </div>
             </div>
         </div>
 
-        <!-- MAIN INTERFACE (Hidden initially) -->
+        <!-- MAIN INTERFACE -->
         <div id="main-ui" class="hidden w-full h-full flex flex-col md:flex-row overflow-hidden relative">
             
-            <!-- LEFT SIDEBAR -->
+            <!-- SIDEBAR -->
             <div class="w-full md:w-64 glass-panel flex flex-col border-r border-gray-800 z-20">
-                <div class="p-4 border-b border-gray-800 flex justify-between items-center">
+                <div class="p-4 border-b border-gray-800 flex justify-between items-center bg-black/40">
                     <h2 class="font-mono font-bold text-nexus-neon">NEXUS LINK</h2>
-                    <div id="connection-status" class="w-3 h-3 rounded-full bg-red-500 shadow-[0_0_10px_red]"></div>
+                    <div id="connection-status-icon" class="w-3 h-3 rounded-full bg-red-500 shadow-[0_0_10px_red]" title="Offline"></div>
                 </div>
                 
-                <!-- User List -->
                 <div class="flex-1 overflow-y-auto p-4 space-y-3" id="user-list">
-                    <div class="text-xs text-gray-500 italic">Waiting for peers in room...</div>
+                    <div class="text-xs text-gray-500 italic">Waiting for connection...</div>
                 </div>
 
-                <!-- Session Info -->
                 <div class="p-4 bg-black/20 border-t border-gray-800 text-xs font-mono space-y-2">
                     <div class="flex justify-between">
                         <span class="text-gray-400">ROLE:</span>
                         <span id="my-role-display" class="text-nexus-purple font-bold">...</span>
                     </div>
-                     <div class="flex justify-between">
+                     <div class="flex justify-between items-center">
                         <span class="text-gray-400">ID:</span>
-                        <span id="my-peer-id-display" class="text-white truncate w-16" title="Click to copy">...</span>
+                        <span id="my-peer-id-display" class="text-white truncate w-20 cursor-pointer hover:text-nexus-neon" onclick="navigator.clipboard.writeText(this.innerText)">...</span>
                     </div>
                 </div>
             </div>
 
-            <!-- CENTER: CHAT & VIDEO -->
+            <!-- CHAT AREA -->
             <div class="flex-1 flex flex-col bg-nexus-dark/80 relative">
                 
                 <!-- Video Grid -->
@@ -186,17 +173,17 @@
                     </div>
                 </div>
 
-                <!-- Chat Area -->
+                <!-- Chat Messages -->
                 <div id="chat-box" class="flex-1 overflow-y-auto p-4 space-y-4 scroll-smooth">
                     <div class="flex justify-center my-4">
                         <span class="text-xs text-nexus-success bg-nexus-success/10 px-3 py-1 rounded-full border border-nexus-success/30">
-                            <i class="fas fa-shield-alt mr-1"></i> Room Encrypted (AES-GCM)
+                            <i class="fas fa-shield-alt mr-1"></i> AES-256-GCM Encrypted
                         </span>
                     </div>
                 </div>
 
-                <!-- Input Area -->
-                <div class="p-4 glass-panel border-t border-gray-800">
+                <!-- Input Area (Disabled until connected) -->
+                <div id="input-area" class="p-4 glass-panel border-t border-gray-800 disabled-overlay transition-opacity duration-300">
                     <div id="file-progress-container" class="hidden mb-2">
                          <div class="flex justify-between text-xs text-nexus-neon mb-1">
                              <span id="file-status-text">Uploading...</span>
@@ -212,29 +199,26 @@
                             <i class="fas fa-paperclip text-lg"></i>
                             <input type="file" id="file-input" class="hidden" onchange="Nexus.handleFileUpload(this)">
                         </label>
-                        <input type="text" id="msg-input" class="flex-1 bg-black/50 border border-gray-700 rounded-full px-4 text-white focus:border-nexus-neon outline-none" placeholder="Encrypted message..." autocomplete="off">
-                        <button type="submit" class="text-nexus-neon hover:text-white transition">
+                        <input type="text" id="msg-input" class="flex-1 bg-black/50 border border-gray-700 rounded-full px-4 text-white focus:border-nexus-neon outline-none" placeholder="Waiting for secure connection..." autocomplete="off" disabled>
+                        <button type="submit" id="send-btn" class="text-gray-500 transition" disabled>
                             <i class="fas fa-paper-plane text-lg"></i>
                         </button>
                     </form>
                 </div>
 
-                <!-- Floating Video Controls -->
+                <!-- Media Controls -->
                 <div class="absolute top-4 right-4 flex gap-2">
-                    <button onclick="Nexus.toggleVideo()" id="btn-video" class="glass-panel w-10 h-10 rounded-full flex items-center justify-center text-gray-400 hover:text-white hover:border-nexus-neon transition">
+                    <button onclick="Nexus.toggleVideo()" id="btn-video" class="glass-panel w-10 h-10 rounded-full flex items-center justify-center text-gray-400 hover:text-white transition">
                         <i class="fas fa-video"></i>
                     </button>
-                    <button onclick="Nexus.toggleAudio()" id="btn-audio" class="glass-panel w-10 h-10 rounded-full flex items-center justify-center text-gray-400 hover:text-white hover:border-nexus-neon transition">
+                    <button onclick="Nexus.toggleAudio()" id="btn-audio" class="glass-panel w-10 h-10 rounded-full flex items-center justify-center text-gray-400 hover:text-white transition">
                         <i class="fas fa-microphone"></i>
                     </button>
                 </div>
             </div>
-
         </div>
-
     </div>
 
-    <!-- MAIN LOGIC -->
     <script>
         const Nexus = {
             state: {
@@ -250,8 +234,7 @@
                 isHost: false
             },
 
-            // --- 1. CRYPTO & ID GENERATION ---
-
+            // --- 1. CRYPTO ---
             async hashString(str) {
                 const enc = new TextEncoder();
                 const hashBuffer = await crypto.subtle.digest('SHA-256', enc.encode(str));
@@ -267,7 +250,7 @@
                 return await window.crypto.subtle.deriveKey(
                     {
                         name: "PBKDF2",
-                        salt: enc.encode("nexus_salt_v1"),
+                        salt: enc.encode("nexus_salt_fixed"), 
                         iterations: 100000,
                         hash: "SHA-256"
                     },
@@ -307,57 +290,68 @@
                         data
                     );
                 } catch (e) {
-                    console.error("Decryption failed", e);
                     return null;
                 }
             },
 
-            // --- 2. AUTO-JOIN LOGIC (THE FIX) ---
-
+            // --- 2. LOGIC ---
             async initSession() {
                 const nick = document.getElementById('nickname-input').value;
                 const pass = document.getElementById('password-input').value;
                 const status = document.getElementById('status-msg');
+                const btn = document.getElementById('join-btn');
 
                 if (!nick || !pass) {
-                    status.innerText = "Credentials required.";
+                    status.innerText = "Please enter Nickname & Password";
                     return;
                 }
 
+                btn.disabled = true;
                 this.state.nick = nick;
                 this.state.password = pass;
-                status.innerText = "Deriving Keys & Hashing Room ID...";
-
-                // 1. Generate Room ID from Password (deterministic)
-                const hash = await this.hashString(pass);
-                // PeerJS IDs must be alphanumeric. We use a prefix to avoid collisions with randoms.
-                // We truncate to 16 chars for cleaner IDs, but enough entropy for this demo.
-                this.state.roomIdHash = `nexus_room_${hash.substring(0, 16)}`;
                 
-                // 2. Derive Encryption Keys
+                status.innerText = "🔐 Generating Crypto Keys...";
                 this.state.masterKey = await this.deriveKey(pass);
 
-                // 3. Attempt to Claim the Room ID (Become Host)
-                status.innerText = "Contacting Network...";
-                
-                const potentialHostPeer = new Peer(this.state.roomIdHash, { debug: 1 });
+                // Create Deterministic Room ID
+                const hash = await this.hashString(pass);
+                // We truncate hash to be friendly to PeerJS ID limits
+                this.state.roomIdHash = `nexus_${hash.substring(0, 16)}`;
 
-                potentialHostPeer.on('open', (id) => {
-                    // SUCCESS: We are the Host!
-                    this.finalizeLogin(potentialHostPeer, true);
+                status.innerText = "📡 Connecting to Network...";
+
+                // Try to be the Host first
+                const peer = new Peer(this.state.roomIdHash, {
+                    debug: 1,
+                    config: {
+                        iceServers: [
+                            { urls: 'stun:stun.l.google.com:19302' },
+                            { urls: 'stun:global.stun.twilio.com:3478' }
+                        ]
+                    }
                 });
 
-                potentialHostPeer.on('error', (err) => {
+                peer.on('open', (id) => {
+                    // Success: We are Host
+                    this.finalizeLogin(peer, true);
+                });
+
+                peer.on('error', (err) => {
                     if (err.type === 'unavailable-id') {
-                        // ID TAKEN: Someone is already host. We join them.
-                        status.innerText = "Room found. Joining as Guest...";
-                        const guestPeer = new Peer(); // Get random ID
-                        
-                        guestPeer.on('open', () => {
-                            this.finalizeLogin(guestPeer, false);
-                        });
+                        // ID Taken: Host exists, we are Guest
+                        status.innerText = "Found Room. Joining as Guest...";
+                        const guestPeer = new Peer(null, { // Null = random ID
+                             config: {
+                                iceServers: [
+                                    { urls: 'stun:stun.l.google.com:19302' }
+                                ]
+                            }
+                        }); 
+                        guestPeer.on('open', () => this.finalizeLogin(guestPeer, false));
+                        guestPeer.on('error', (e) => console.log('Guest Error', e));
                     } else {
-                        status.innerText = "Network Error: " + err.type;
+                        status.innerText = "Error: " + err.type;
+                        btn.disabled = false;
                     }
                 });
             },
@@ -366,50 +360,46 @@
                 this.state.peer = peerInstance;
                 this.state.isHost = isHost;
 
-                // UI Transition
                 document.getElementById('login-screen').classList.add('hidden');
                 document.getElementById('main-ui').classList.remove('hidden');
                 
                 document.getElementById('my-peer-id-display').innerText = this.state.peer.id;
                 document.getElementById('my-role-display').innerText = isHost ? "HOST" : "GUEST";
                 
-                this.setupPeerEvents();
+                // Handle Incoming
+                this.state.peer.on('connection', (conn) => this.handleIncomingConnection(conn));
+                this.state.peer.on('call', (call) => this.handleIncomingCall(call));
 
                 if (!isHost) {
-                    // Connect to the known Host ID
+                    // Guests initiate connection to Host
                     this.connectToPeer(this.state.roomIdHash);
                 } else {
                     this.appendSystemMessage("Room Host Active. Waiting for peers...");
                 }
-                
-                this.updateStatus(true);
             },
-
-            setupPeerEvents() {
-                this.state.peer.on('connection', (conn) => {
-                    this.handleIncomingConnection(conn);
-                });
-
-                this.state.peer.on('call', (call) => {
-                    this.handleIncomingCall(call);
-                });
-            },
-
-            // --- 3. CONNECTION HANDLERS ---
 
             connectToPeer(targetId) {
                 this.appendSystemMessage(`Connecting to Room Host...`);
-                const conn = this.state.peer.connect(targetId);
+                // Reliable: true ensures packets arrive in order
+                const conn = this.state.peer.connect(targetId, { reliable: true });
                 this.setupConnection(conn);
             },
 
             setupConnection(conn) {
                 conn.on('open', async () => {
                     this.state.conn = conn;
-                    this.appendSystemMessage(`Secure Channel Established.`);
+                    this.appendSystemMessage(`✅ Secure Handshake Complete`);
                     this.updateStatus(true);
                     
-                    // Send Handshake
+                    // Unlock UI
+                    document.getElementById('input-area').classList.remove('disabled-overlay');
+                    document.getElementById('msg-input').disabled = false;
+                    document.getElementById('send-btn').disabled = false;
+                    document.getElementById('send-btn').classList.add('text-nexus-neon');
+                    document.getElementById('msg-input').placeholder = "Encrypted message...";
+                    document.getElementById('msg-input').focus();
+
+                    // Send Greeting
                     const payload = JSON.stringify({ type: 'handshake', nick: this.state.nick });
                     const encrypted = await this.encrypt(payload);
                     conn.send(encrypted);
@@ -418,9 +408,13 @@
                 conn.on('data', async (data) => this.handleData(data));
                 
                 conn.on('close', () => {
-                    this.appendSystemMessage("Connection lost.");
+                    this.appendSystemMessage("❌ Connection Lost");
                     this.updateStatus(false);
+                    // Re-lock UI
+                    document.getElementById('input-area').classList.add('disabled-overlay');
                 });
+                
+                conn.on('error', (err) => console.error("Conn Error:", err));
             },
 
             handleIncomingConnection(conn) {
@@ -432,21 +426,15 @@
                 if (arrayBuffer instanceof Blob) arrayBuffer = await arrayBuffer.arrayBuffer();
                 
                 const decrypted = await this.decrypt(new Uint8Array(arrayBuffer));
-                
-                if (!decrypted) {
-                    // If decryption fails, it means passwords didn't match
-                    console.error("Decryption fail. Key mismatch.");
-                    return;
-                }
+                if (!decrypted) return console.error("Decryption Failed");
 
                 const dec = new TextDecoder();
-                const rawText = dec.decode(decrypted);
-                const msgObj = JSON.parse(rawText);
+                const msgObj = JSON.parse(dec.decode(decrypted));
 
                 if (msgObj.type === 'chat') {
                     this.appendMessage(msgObj.nick, msgObj.text, false);
                 } else if (msgObj.type === 'handshake') {
-                    this.appendSystemMessage(`${msgObj.nick} joined the room.`);
+                    this.appendSystemMessage(`👋 ${msgObj.nick} joined the room`);
                     this.addSidebarUser(msgObj.nick);
                 } else if (msgObj.type === 'file-start') {
                     this.startFileReceive(msgObj);
@@ -455,13 +443,17 @@
                 }
             },
 
-            // --- 4. MESSAGING & FILE UI ---
-
+            // --- 3. UI & MESSAGING ---
             async sendMessage(e) {
                 e.preventDefault();
                 const input = document.getElementById('msg-input');
                 const text = input.value;
-                if (!text || !this.state.conn) return;
+                
+                // CRITICAL FIX: Check if connection is actually OPEN
+                if (!text || !this.state.conn || !this.state.conn.open) {
+                    if(!this.state.conn.open) this.appendSystemMessage("Error: Connection not ready.");
+                    return;
+                }
 
                 const payload = JSON.stringify({ type: 'chat', nick: this.state.nick, text: text });
                 const encrypted = await this.encrypt(payload);
@@ -477,10 +469,11 @@
                 div.className = `flex flex-col ${isMe ? 'items-end' : 'items-start'}`;
                 
                 const bubble = document.createElement('div');
-                bubble.className = `max-w-[80%] p-3 rounded-lg ${isMe ? 'bg-nexus-purple text-white rounded-br-none' : 'bg-gray-800 border border-gray-700 text-gray-200 rounded-bl-none'}`;
+                bubble.className = `max-w-[80%] p-3 rounded-lg break-words ${isMe ? 'bg-nexus-purple text-white rounded-br-none' : 'bg-gray-800 border border-gray-700 text-gray-200 rounded-bl-none'}`;
                 bubble.innerHTML = `<div class="text-[10px] opacity-70 mb-1 font-mono">${nick}</div><div>${this.escapeHtml(text)}</div>`;
                 
-                div.appendChild(div);
+                // CRITICAL FIX: div.appendChild(bubble), NOT div.appendChild(div)
+                div.appendChild(bubble); 
                 box.appendChild(div);
                 box.scrollTop = box.scrollHeight;
             },
@@ -494,79 +487,7 @@
                 box.scrollTop = box.scrollHeight;
             },
 
-            // --- 5. FILE TRANSFER ---
-
-            async handleFileUpload(input) {
-                const file = input.files[0];
-                if (!file || !this.state.conn) return;
-
-                const metaPayload = JSON.stringify({
-                    type: 'file-start',
-                    name: file.name,
-                    size: file.size,
-                    mime: file.type,
-                    nick: this.state.nick
-                });
-                this.state.conn.send(await this.encrypt(metaPayload));
-
-                this.appendSystemMessage(`Sending ${file.name}...`);
-                document.getElementById('file-progress-container').classList.remove('hidden');
-
-                const chunkSize = 16384; 
-                let offset = 0;
-                const reader = new FileReader();
-
-                reader.onload = async (e) => {
-                    const b64 = this.arrayBufferToBase64(e.target.result);
-                    const chunkPayload = JSON.stringify({ type: 'file-chunk', data: b64 });
-                    this.state.conn.send(await this.encrypt(chunkPayload));
-                    
-                    offset += e.target.result.byteLength;
-                    this.updateProgressBar(offset, file.size);
-
-                    if (offset < file.size) {
-                        const slice = file.slice(offset, offset + chunkSize);
-                        reader.readAsArrayBuffer(slice);
-                    } else {
-                        setTimeout(() => document.getElementById('file-progress-container').classList.add('hidden'), 2000);
-                        this.appendSystemMessage(`Sent ${file.name}`);
-                    }
-                };
-                reader.readAsArrayBuffer(file.slice(0, chunkSize));
-            },
-
-            startFileReceive(meta) {
-                this.state.files['current'] = { meta: meta, received: 0, buffer: [] };
-                this.appendSystemMessage(`Receiving ${meta.name}...`);
-                document.getElementById('file-progress-container').classList.remove('hidden');
-            },
-
-            receiveFileChunk(chunkData) {
-                const current = this.state.files['current'];
-                if(!current) return;
-                const bytes = this.base64ToArrayBuffer(chunkData.data);
-                current.buffer.push(bytes);
-                current.received += bytes.byteLength;
-                this.updateProgressBar(current.received, current.meta.size);
-
-                if (current.received >= current.meta.size) {
-                    const blob = new Blob(current.buffer, { type: current.meta.mime });
-                    const url = URL.createObjectURL(blob);
-                    this.appendSystemMessage(`File Received: ${current.meta.name}`);
-                    
-                    const box = document.getElementById('chat-box');
-                    const link = document.createElement('div');
-                    link.className = 'text-center my-2';
-                    link.innerHTML = `<a href="${url}" download="${current.meta.name}" class="text-nexus-neon underline font-bold bg-gray-800 p-2 rounded block">Download ${this.escapeHtml(current.meta.name)}</a>`;
-                    box.appendChild(link);
-                    
-                    document.getElementById('file-progress-container').classList.add('hidden');
-                    this.state.files['current'] = null;
-                }
-            },
-
-            // --- 6. MEDIA ---
-
+            // --- 4. MEDIA & FILES ---
             async toggleVideo() {
                 if (!this.state.localStream) await this.startMedia();
                 const trk = this.state.localStream.getVideoTracks()[0];
@@ -586,11 +507,11 @@
                     document.getElementById('local-video').srcObject = stream;
                     document.getElementById('video-grid').classList.remove('hidden');
                     document.getElementById('video-grid').classList.add('flex');
-                    if (this.state.conn) {
+                    if (this.state.conn && this.state.conn.open) {
                          const call = this.state.peer.call(this.state.conn.peer, stream);
                          this.handleMediaCall(call);
                     }
-                } catch(e) { alert("Camera access denied"); }
+                } catch(e) { alert("Camera/Mic denied"); }
             },
             handleIncomingCall(call) {
                 navigator.mediaDevices.getUserMedia({ video: true, audio: true }).then((stream) => {
@@ -617,10 +538,79 @@
                 });
             },
 
+            // --- 5. FILE HANDLING ---
+            async handleFileUpload(input) {
+                const file = input.files[0];
+                if (!file || !this.state.conn || !this.state.conn.open) return;
+
+                const metaPayload = JSON.stringify({ type: 'file-start', name: file.name, size: file.size, mime: file.type, nick: this.state.nick });
+                this.state.conn.send(await this.encrypt(metaPayload));
+
+                this.appendSystemMessage(`📤 Uploading ${file.name}...`);
+                document.getElementById('file-progress-container').classList.remove('hidden');
+
+                const chunkSize = 16384; 
+                let offset = 0;
+                const reader = new FileReader();
+
+                reader.onload = async (e) => {
+                    const b64 = this.arrayBufferToBase64(e.target.result);
+                    const chunkPayload = JSON.stringify({ type: 'file-chunk', data: b64 });
+                    this.state.conn.send(await this.encrypt(chunkPayload));
+                    
+                    offset += e.target.result.byteLength;
+                    this.updateProgressBar(offset, file.size);
+
+                    if (offset < file.size) {
+                        const slice = file.slice(offset, offset + chunkSize);
+                        reader.readAsArrayBuffer(slice);
+                    } else {
+                        setTimeout(() => document.getElementById('file-progress-container').classList.add('hidden'), 2000);
+                        this.appendSystemMessage(`✅ Sent ${file.name}`);
+                    }
+                };
+                reader.readAsArrayBuffer(file.slice(0, chunkSize));
+            },
+
+            startFileReceive(meta) {
+                this.state.files['current'] = { meta: meta, received: 0, buffer: [] };
+                this.appendSystemMessage(`📥 Receiving ${meta.name}...`);
+                document.getElementById('file-progress-container').classList.remove('hidden');
+            },
+
+            receiveFileChunk(chunkData) {
+                const current = this.state.files['current'];
+                if(!current) return;
+                const bytes = this.base64ToArrayBuffer(chunkData.data);
+                current.buffer.push(bytes);
+                current.received += bytes.byteLength;
+                this.updateProgressBar(current.received, current.meta.size);
+
+                if (current.received >= current.meta.size) {
+                    const blob = new Blob(current.buffer, { type: current.meta.mime });
+                    const url = URL.createObjectURL(blob);
+                    
+                    const box = document.getElementById('chat-box');
+                    const link = document.createElement('div');
+                    link.className = 'text-center my-2';
+                    link.innerHTML = `<a href="${url}" download="${current.meta.name}" class="text-nexus-neon underline font-bold bg-gray-800 p-2 rounded block hover:bg-gray-700">💾 Download ${this.escapeHtml(current.meta.name)}</a>`;
+                    box.appendChild(link);
+                    
+                    document.getElementById('file-progress-container').classList.add('hidden');
+                    this.state.files['current'] = null;
+                }
+            },
+
             // --- UTILS ---
             updateStatus(online) {
-                const el = document.getElementById('connection-status');
-                el.className = online ? "w-3 h-3 rounded-full bg-nexus-success shadow-[0_0_10px_#00ff9d]" : "w-3 h-3 rounded-full bg-red-500 shadow-[0_0_10px_red]";
+                const el = document.getElementById('connection-status-icon');
+                if (online) {
+                    el.className = "w-3 h-3 rounded-full bg-nexus-success shadow-[0_0_10px_#00ff9d]";
+                    el.title = "Securely Connected";
+                } else {
+                    el.className = "w-3 h-3 rounded-full bg-red-500 shadow-[0_0_10px_red]";
+                    el.title = "Offline / Connecting";
+                }
             },
             addSidebarUser(nick) {
                 const list = document.getElementById('user-list');
@@ -659,5 +649,3 @@
     </script>
 </body>
 </html>
-
-
